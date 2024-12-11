@@ -12,6 +12,9 @@
 	spacedelimfmt: .asciz "%d "
 	scanfreadnum: .asciz "%d"
 	newline: .asciz "\n"
+	exit_error: .asciz "programul nu a iesit in siguranta :(\n"
+	fd_si_interval: .asciz "%d: (%d, %d)\n"
+	interval: .asciz "(%d, %d)\n"
 
 .text
 # zero_fill:
@@ -58,6 +61,62 @@ check_valid_space:
 		popl %ebp
 		ret
 	
+search_valid_space:
+	## int search_valid_space(*arr, size)
+	## returneaza pozitiile start=%eax si end=%edx unde se pot modifica blocurile in siguranta
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	movl 16(%ebp), %edx
+	movl 12(%ebp), %eax
+	movl $0, beg
+	decl %edx
+	#subl $1, %edx
+	movl %edx, end
+	check_condition:
+		pushl %ecx
+		pushl end
+		pushl beg
+		pushl %eax
+		call check_valid_space
+		movl %eax, %ebx
+		popl %eax
+		popl %ecx
+		popl %ecx
+		popl %ecx	
+		cmp $1, %ebx
+		je found_valid_space
+		cmp $0, %ebx
+		je keep_searching
+
+	found_valid_space:
+		movl beg, %eax
+		movl end, %edx
+		jmp return_interval
+	
+	keep_searching:
+		movl end, %ebx
+		cmp $1024, %ebx
+		je valid_space_not_found
+		movl beg, %ebx
+		incl %ebx
+		movl %ebx, beg
+		movl end, %ebx
+		incl %ebx
+		movl %ebx, end
+		jmp check_condition
+
+	valid_space_not_found:
+		movl $0, %eax
+		movl $0, %edx
+		jmp return_interval
+		
+
+	return_interval:
+		popl %ebx
+		popl %ebp
+		ret
+
 
 fill_blocks:
 	## void fill_blocks(*arr, start, stop, num)
@@ -69,6 +128,7 @@ fill_blocks:
 	movl 20(%ebp), %edx
 	movl 16(%ebp), %ecx  
 	movl 12(%ebp), %eax
+	incl %edx
 	fill_loop:
 		cmp %edx, %ecx
 		je fill_done
@@ -121,121 +181,167 @@ print_array:
 
 main:
 	## umple arrayul "arr" de zero
-	lea arr, %esi
+	lea arr, %edi
 	xorl %eax, %eax
 	movl $1024, %edx
 	xorl %ecx, %ecx
 	pushl %ecx
 	pushl %edx
 	pushl %eax
-	pushl %esi
-	#call zero_fill
+	pushl %edi
 	call fill_blocks
-	addl $16, %esp
-	#lea arr, %edi
-	movl $1024, %eax
-	pushl %eax
-	#pushl %edi
-	pushl %esi
-	call print_array
-	addl $8, %esp
+	popl %edi
+	popl %eax
+	popl %edx
+	popl %ecx
+
+	# pushl $69
+	# pushl $15
+	# pushl $0
+	# pushl %edi
+	# call fill_blocks
+	# addl $16, %esp
+	# 
+	# pushl $1024
+	# pushl %edi
+	# call print_array
+	# addl $8, %esp
+
+	# jmp et_exit
 
 	# citeste numarul de operatii
 	pushl $operations
 	pushl $scanfreadnum
 	call scanf
-	addl $8, %esp
+	popl %ecx
+	popl %ecx
 	
 	movl operations, %ecx
-		
-	#citeste codul operatiei
-	pushl $opcode
-	pushl $scanfreadnum
-	call scanf
-	addl $8, %esp
+	operations_loop:
+		#citeste codul operatiei
+		pushl %ecx
+		pushl $opcode
+		pushl $scanfreadnum
+		call scanf
+		popl %ecx
+		popl %ecx
+		popl %ecx
+		jmp call_operation
+		end_operation:
+			loop operations_loop
 	
 call_operation:
-	movl $opcode, %eax
+	movl opcode, %eax
 	cmp $1, %eax
 	je ADD
+	jmp possible_error
 	cmp $2, %eax
 	je GET
-	cmp $3, %eax
-	je DELETE
-	cmp $4, %eax
-	je DEFRAGMENTATION
-	cmp $5, %eax
-	je CONCRETE
+	#cmp $3, %eax
+	#je DELETE
+	#cmp $4, %eax
+	#je DEFRAGMENTATION
+	#cmp $5, %eax
+	#je CONCRETE
 
 ADD:
+	## salvez contorul %ecx de la operations_loop pentru ca scanf il va strica fiind caller-saved
+	## apoi citesc numarul de fisiere pe care il adaug in tablou
+	## PASTREZ %ECX IN STIVA PENTRU CA IL VOI FOLOSI PENTRU LOOPUL ULTERIOR (ca sa salvez %ecx ul precedent de la operations_loop)
+	pushl %ecx
 	pushl $num_of_files
 	pushl $scanfreadnum
 	call scanf
-	addl $8, %esp
-	pushl %ebx
-	lea arr, %esi
-	xorl %ebx, %ebx
+	popl %ecx
+	popl %ecx
 	movl num_of_files, %ecx
-	ADD_loop:
+	input_file_loop:
+		## citeste file descriptor
+		pushl %ecx
 		pushl $fd
 		pushl $scanfreadnum
 		call scanf
-		addl $8, %esp
+		popl %ecx
+		popl %ecx
+		popl %ecx
+		## citeste marimea fisierului
+		pushl %ecx
 		pushl $size
 		pushl $scanfreadnum
 		call scanf
-		addl $8, %esp
-		movl size, %eax
+		popl %ecx
+		popl %ecx
+		popl %ecx
 		xorl %edx, %edx
-		pushl %ecx
-		movl $8, %ecx
-		divl %ecx
-		popl %ecx
+		pushl %ebx
+		movl size, %eax
+		movl $8, %ebx
+		divl %ebx
 		cmp $0, %edx
-		jne decrease_offset
-		pushl %eax
-		addl %ebx, %eax
-		pushl %ecx
-		pushl %eax
-		pushl %ebx
-		pushl %esi
-		call check_valid_space
-		cmp $1, %eax
-		je fill_space
-		cmp $0, %eax
-		je try_fill_space
-		addl $8, %esp
-		popl %eax
-		popl %ecx
-		incl %eax
-		movl %eax, %ebx
-		loop ADD_loop
+		jne increment_block
+		found_block_amount:
+			popl %ebx
+			movl %eax, size
+			pushl %ecx
+			pushl size
+			pushl %edi
+			call search_valid_space
+			popl %ecx
+			popl %ecx
+			popl %ecx
+			pushl %ecx
+			pushl fd
+			pushl %edx
+			pushl %eax
+			pushl %edi
+			call fill_blocks
+			#addl $16, %esp
+			popl %ebx
+			popl %eax
+			popl %ebx
+			popl %ebx
+			popl %ecx
+			
+			decl %edx
+		
+			pushl %ecx
+			pushl %edx
+			pushl %eax
+			pushl fd
+			pushl $fd_si_interval
+			call printf
+			popl %ecx
+			popl %ecx
+			popl %ecx
+			popl %ecx
+			popl %ecx
+	
+# 			movl $1024, %eax
+# 			pushl %eax
+# 			pushl %edi
+# 			call print_array
+# 			popl %edi
+# 			popl %eax
+# 
 
-	fill_space:
-		movl fd, %eax
-		pushl %eax
-		pushl %ebx
-		pushl %esi
-		call fill_blocks
-		addl $12, %esp
-		jmp ADD_loop
-
-	try_fill_space:
-		pushl %ecx
-		pushl %edi
-		try_loop:
-			cmp $1024, %eax
-			jg ADD_invalid
-			movb (%esi, %ebx, 1), %cl
-			cmp $0, %cl
-			jne change_bounds
-			jmp try_done
-		change_bounds:
-			incl %ebx
+			#loop input_file_loop
+			#popl %ecx
+			loop input_file_loop
+			jmp operations_loop
+		
+		increment_block:
 			incl %eax
-			jmp try_loop
-			
-			
+			jmp found_block_amount
+
+GET:
+	
+	
+
+possible_error:
+	pushl $exit_error
+	call printf
+	popl %ecx
+	jmp et_exit
 
 et_exit:
 	#pushl $newline
