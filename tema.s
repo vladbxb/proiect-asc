@@ -234,7 +234,7 @@ call_operation:
 	movl opcode, %eax
 	cmp $1, %eax
 	je ADD
-	jmp possible_error
+	#jmp possible_error
 	cmp $2, %eax
 	je GET
 	#cmp $3, %eax
@@ -334,9 +334,67 @@ ADD:
 			jmp found_block_amount
 
 GET:
-	
-	
+	pushl %ecx
+	pushl $fd
+	pushl $scanfreadnum
+	call scanf
+	CONTINUE_GET:
+	popl %ecx
+	popl %ecx
+	popl %ecx	
+	pushl %ecx
+	pushl %ebx
+	xorl %ecx, %ecx
+	xorl %edx, %edx
+	xorl %eax, %eax
+	movl $0, beg
+	movl $0, end
+	GET_loop:
+		cmp $1024, %ecx
+		je GET_not_found
+		movb (%edi, %ecx, 1), %al
+		cmp fd, %al
+		je GET_found_descriptor
+		movl beg, %ebx
+		cmp $0, %ebx
+		jne GET_found_last
+		jmp GET_loop
+		
+	GET_found_descriptor:
+		cmp $0, %edx
+		je GET_found_first
+		GET_found_descriptor_continue:
+			incl %ecx
+			jmp GET_loop
 
+	GET_not_found:
+		movl beg, %ebx
+		cmp $0, %ebx
+		jne GET_found_last
+		movl $0, beg
+		movl $0, end
+		jmp GET_return_interval
+
+	GET_found_first:
+		movl $1, %edx
+		movl %ecx, beg
+		jmp GET_found_descriptor_continue
+
+	GET_found_last:
+		decl %ecx
+		movl %ecx, end
+		jmp GET_return_interval
+
+	GET_return_interval:
+		pushl end
+		pushl beg
+		pushl $interval
+		call printf
+		addl $12, %esp
+		popl %ebx
+		popl %ecx
+		jmp operations_loop
+		
 possible_error:
 	pushl $exit_error
 	call printf
