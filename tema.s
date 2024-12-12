@@ -33,6 +33,76 @@
 # 		popl %ebp
 # 		ret
 
+find_first_occurrence:
+	## int find_first_occurrence(*arr, start, num)
+	## gaseste prima aparenta a numarului num in array incepand de la pozitia start
+	## returneaza -1 daca nu gaseste numarul si pozitia numarului daca il gaseste
+	## valoarea de return este in %eax
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	movl 20(%ebp), %edx
+	movl 16(%ebp), %ecx
+	movl 12(%ebp), %eax
+	xorl %ebx, %ebx
+	first_occurrence_search:
+		cmp $1024, %ecx
+		je first_occurrence_not_found
+		movb (%eax, %ecx, 1), %bl
+		movzb %bl, %ebx
+		cmp %edx, %ebx
+		je first_occurrence_found
+		incl %ecx
+		jmp first_occurrence_search
+		
+	first_occurrence_not_found:
+		movl $-1, %eax
+		jmp find_first_occurrence_return
+
+	first_occurrence_found:
+		movl %ecx, %eax
+		jmp find_first_occurrence_return
+
+	find_first_occurrence_return:
+		popl %ebx
+		popl %ebp
+		ret
+
+find_first_last_occurrence:
+	## int find_first_last_occurrence(*arr, start)
+	## gaseste ultima aparenta din sirul de numere repetate in array formate din num care incepe de la pozitia start
+	## returneaza strict pozitia numarului gasit (orice numar din array va avea o ultima aparenta, chiar formata si din ea insasi)
+	## valoarea din return este in %eax
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	movl 16(%ebp), %ecx
+	movl 12(%ebp), %eax
+	xorl %ebx, %ebx
+	xorl %edx, %edx
+	movb (%eax, %ecx, 1), %dl
+	incl %ecx
+	first_last_occurrence_search:
+		cmp $1024, %ecx
+		je found_first_last_occurrence
+		movb (%eax, %ecx, 1), %bl
+		cmp %bl, %dl
+		jne found_first_last_occurrence
+		incl %ecx
+		jmp first_last_occurrence_search
+
+	found_first_last_occurrence:
+		decl %ecx
+		movl %ecx, %eax
+		jmp find_first_last_occurrence_return
+
+	find_first_last_occurrence_return:
+		popl %ebx
+		popl %ebp
+		ret
+		
+		
+
 check_valid_space:
 	## bool check_valid_space(*arr, start, stop)
 	## valoarea de return este in %eax
@@ -177,6 +247,148 @@ print_array:
 	popl %ebp
 	ret
 
+print_all_intervals:
+	## void print_all_intervals(*arr)
+	## afiseaza pe ecran toate blocurile de date stocate ca intervale
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	movl 12(%ebp), %eax
+	xorl %ecx, %ecx
+	xorl %ebx, %ebx
+	print_all_intervals_loop:
+		cmp $1024, %ecx
+		je print_all_intervals_return
+		movb (%eax, %ecx, 1), %bl
+		cmp $0, %bl
+		jne print_found_interval
+		incl %ecx
+		jmp print_all_intervals_loop
+	
+
+	print_found_interval:
+		pushl %ecx
+		pushl %eax
+		call find_first_last_occurrence
+		movl %eax, %edx
+		popl %eax
+		popl %ecx
+		pushl %eax
+		pushl %edx
+		pushl %ecx
+		pushl $interval
+		call printf
+		popl %ecx
+		popl %ecx
+		popl %edx
+		popl %eax
+		movl %edx, %ecx
+		incl %ecx
+		jmp print_all_intervals_loop
+
+	print_all_intervals_return:
+		popl %ebx
+		popl %ebp
+		ret
+
+GET_func:
+	## void GET_func(int fd, bool flag)
+	## furnizeaza in beg si end variabile globale capatul de la inceput si de la sfarsitul intervalului gasit
+	## prin pasarea parametrului $1 afisam in plus si intervalul pe ecran
+	pushl %ebp
+	movl %esp, %ebp
+	pushl %ecx
+	GET_after_read:
+	popl %ecx
+
+	movl 8(%ebp), %eax
+	pushl %ecx
+	pushl %eax
+	pushl $0
+	pushl %edi
+	call find_first_occurrence
+	popl %ecx
+	popl %ecx
+	popl %ecx
+	popl %ecx
+	movl %eax, beg
+	
+	pushl %ecx
+	pushl %eax
+	pushl %edi
+	call find_first_last_occurrence
+	popl %ecx
+	popl %ecx
+	popl %ecx
+
+	movl %eax, end
+	jmp GET_return_interval
+	# pushl %ecx
+	# pushl %ebx
+	# xorl %ecx, %ecx
+	# xorl %edx, %edx
+	# xorl %eax, %eax
+	# movl $0, beg
+	# movl $0, end
+	# GET_loop:
+	# 	cmp $1024, %ecx
+	# 	je GET_not_found
+	# 	movb (%edi, %ecx, 1), %al
+	# 	cmp fd, %al
+	# 	je GET_found_descriptor
+	# 	movl beg, %ebx
+	# 	cmp $0, %ebx
+	# 	jne GET_found_last
+	# 	jmp GET_loop
+	# 	
+	# GET_found_descriptor:
+	# 	cmp $0, %edx
+	# 	je GET_found_first
+	# 	GET_found_descriptor_continue:
+	# 		incl %ecx
+	# 		jmp GET_loop
+
+	# GET_not_found:
+	# 	movl beg, %ebx
+	# 	cmp $0, %ebx
+	# 	jne GET_found_last
+	# 	movl $0, beg
+	# 	movl $0, end
+	# 	jmp GET_return_interval
+
+	# GET_found_first:
+	# 	movl $1, %edx
+	# 	movl %ecx, beg
+	# 	jmp GET_found_descriptor_continue
+
+	# GET_found_last:
+	# 	decl %ecx
+	# 	movl %ecx, end
+	# 	jmp GET_return_interval
+
+	GET_return_interval:
+		movl 12(%ebp), %eax
+		cmp $1, %eax
+		je GET_print_interval
+		# popl %ebx
+		# popl %ecx
+		jmp GET_return
+		
+
+	GET_print_interval:
+		pushl end
+		pushl beg
+		pushl $interval
+		call printf
+		popl %eax
+		popl %eax
+		popl %eax
+		jmp GET_return
+
+	GET_return:
+		popl %ebp
+		ret
+		
 .global main
 
 main:
@@ -237,8 +449,8 @@ call_operation:
 	#jmp possible_error
 	cmp $2, %eax
 	je GET
-	#cmp $3, %eax
-	#je DELETE
+	cmp $3, %eax
+	je DELETE
 	#cmp $4, %eax
 	#je DEFRAGMENTATION
 	#cmp $5, %eax
@@ -334,67 +546,41 @@ ADD:
 			jmp found_block_amount
 
 GET:
-	pushl %ecx
+	pushl $fd
+	pushl $scanfreadnum
+	call scanf	
+	popl %eax
+	popl %eax
+	pushl $1
+	pushl fd
+	call GET_func
+	popl %eax
+	popl %eax
+	jmp operations_loop
+		
+DELETE:
 	pushl $fd
 	pushl $scanfreadnum
 	call scanf
-	CONTINUE_GET:
-	popl %ecx
-	popl %ecx
-	popl %ecx	
-	pushl %ecx
-	pushl %ebx
-	xorl %ecx, %ecx
-	xorl %edx, %edx
-	xorl %eax, %eax
-	movl $0, beg
-	movl $0, end
-	GET_loop:
-		cmp $1024, %ecx
-		je GET_not_found
-		movb (%edi, %ecx, 1), %al
-		cmp fd, %al
-		je GET_found_descriptor
-		movl beg, %ebx
-		cmp $0, %ebx
-		jne GET_found_last
-		jmp GET_loop
-		
-	GET_found_descriptor:
-		cmp $0, %edx
-		je GET_found_first
-		GET_found_descriptor_continue:
-			incl %ecx
-			jmp GET_loop
+	DELETE_after_read:
+	addl $8, %esp
+	pushl $0
+	pushl fd
+	call GET_func
+	popl %eax
+	popl %eax
+	pushl $0
+	pushl end
+	pushl beg
+	pushl %edi
+	call fill_blocks
+	addl $16, %esp
+	addl $4, %esp
+	pushl %edi
+	call print_all_intervals
+	popl %edi
+	jmp operations_loop
 
-	GET_not_found:
-		movl beg, %ebx
-		cmp $0, %ebx
-		jne GET_found_last
-		movl $0, beg
-		movl $0, end
-		jmp GET_return_interval
-
-	GET_found_first:
-		movl $1, %edx
-		movl %ecx, beg
-		jmp GET_found_descriptor_continue
-
-	GET_found_last:
-		decl %ecx
-		movl %ecx, end
-		jmp GET_return_interval
-
-	GET_return_interval:
-		pushl end
-		pushl beg
-		pushl $interval
-		call printf
-		addl $12, %esp
-		popl %ebx
-		popl %ecx
-		jmp operations_loop
-		
 possible_error:
 	pushl $exit_error
 	call printf
