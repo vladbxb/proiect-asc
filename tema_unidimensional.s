@@ -33,6 +33,108 @@
 # 		popl %ebp
 # 		ret
 
+DEFRAGMENTATION_func:
+## void DEFRAGMENTATION_func(*arr)
+## defragmenteaza tot arrayul
+	pushl %ebp
+	pushl %edi
+	pushl %esi
+	pushl %ebx
+	movl %esp, %ebp
+	movl 20(%ebp), %eax
+	xorl %edi, %edi
+	xorl %esi, %esi
+	xorl %ecx, %ecx
+	xorl %edx, %edx
+	xorl %ebx, %ebx
+	DEFRAGMENTATION_loop:
+		pushl $0
+		pushl %edi
+		pushl %eax
+		call find_first_occurrence
+		movl %eax, %edi
+		popl %eax
+		popl %edx
+		popl %edx
+		jmp DEFRAGMENTATION_find_esi
+
+		DEFRAGMENTATION_found_empty_space:
+		movb (%eax, %esi, 1), %dl
+		movb %dl, (%eax, %edi, 1)
+		incl %edi
+		incl %esi
+		cmp $1023, %esi
+		je DEFRAGMENTATION_zero_fill
+		jmp DEFRAGMENTATION_found_empty_space
+
+	DEFRAGMENTATION_find_esi:
+		pushl %edi
+		pushl %eax
+		call find_first_last_occurrence
+		incl %eax
+		movl %eax, %edx
+		popl %eax
+		popl %edi
+		cmp $1024, %edx
+		je DEFRAGMENTATION_return
+		movl %edx, %esi
+		jmp DEFRAGMENTATION_found_empty_space
+		
+	DEFRAGMENTATION_zero_fill:
+		cmp $1024, %edi
+		je DEFRAGMENTATION_reset_beginning
+		xorl %ecx, %ecx
+		movb %cl, (%eax, %edi, 1)
+		incl %edi
+		jmp DEFRAGMENTATION_zero_fill
+
+	DEFRAGMENTATION_reset_beginning:
+		xorl %edi, %edi
+		jmp DEFRAGMENTATION_loop
+
+	DEFRAGMENTATION_return:
+		pushl $1
+		pushl %eax
+		call print_all_intervals
+		popl %eax
+		popl %ebx
+		popl %ebx
+		popl %esi
+		popl %edi	
+		popl %ebp
+		ret
+
+move_blocks:
+	## int move_blocks(*arr, destination, start, end)
+	## interschimba doua siruri de blocuri in memorie
+	pushl %ebp
+	pushl %ebx
+	pushl %edi
+	pushl %esi
+	movl %esp, %ebp
+	movl 20(%ebp), %eax
+	movl 24(%ebp), %edi
+	movl 28(%ebp), %esi
+	movl 32(%ebp), %edx
+	xorl %ecx, %ecx
+	xorl %ebx, %ebx
+	move_blocks_loop:
+		cmp %esi, %edx
+		je move_blocks_return
+		movb (%eax, %edi, 1), %cl
+		movb (%eax, %esi, 1), %bl
+		movb %bl, (%eax, %edi, 1)
+		movb %cl, (%eax, %esi, 1)
+		incl %edi
+		incl %esi
+		jmp move_blocks_loop
+	move_blocks_return:
+		popl %esi
+		popl %edi
+		popl %ebx
+		popl %ebp
+		ret
+
 find_first_occurrence:
 	## int find_first_occurrence(*arr, start, num)
 	## gaseste prima aparenta a numarului num in array incepand de la pozitia start
@@ -248,7 +350,7 @@ print_array:
 	ret
 
 print_all_intervals:
-	## void print_all_intervals(*arr)
+	## void print_all_intervals(*arr, bool flag)
 	## afiseaza pe ecran toate blocurile de date stocate ca intervale
 	pushl %ebp
 	pushl %ebx
@@ -267,12 +369,28 @@ print_all_intervals:
 	
 
 	print_found_interval:
+		movl %ebx, fd
 		pushl %ecx
 		pushl %eax
 		call find_first_last_occurrence
 		movl %eax, %edx
 		popl %eax
 		popl %ecx
+		movl 16(%ebp), %ebx
+		cmp $1, %ebx
+		je print_with_fd
+		jmp print_without_fd
+		print_found_interval_continue:
+		movl %edx, %ecx
+		incl %ecx
+		jmp print_all_intervals_loop
+
+	print_all_intervals_return:
+		popl %ebx
+		popl %ebp
+		ret
+	
+	print_without_fd:
 		pushl %eax
 		pushl %edx
 		pushl %ecx
@@ -282,19 +400,26 @@ print_all_intervals:
 		popl %ecx
 		popl %edx
 		popl %eax
-		movl %edx, %ecx
-		incl %ecx
-		jmp print_all_intervals_loop
+		jmp print_found_interval_continue
 
-	print_all_intervals_return:
-		popl %ebx
-		popl %ebp
-		ret
+	print_with_fd:
+		pushl %eax
+		pushl %edx
+		pushl %ecx
+		pushl fd
+		pushl $fd_si_interval
+		call printf
+		popl %ecx
+		popl %ecx
+		popl %ecx
+		popl %edx
+		popl %eax
+		jmp print_found_interval_continue
 
 GET_func:
 	## void GET_func(int fd, bool flag)
 	## furnizeaza in beg si end variabile globale capatul de la inceput si de la sfarsitul intervalului gasit
-	## prin pasarea parametrului $1 afisam in plus si intervalul pe ecran
+	## prin pasarea parametrului $1 afisam in plus si intervalul pe ecran FARA file descriptor
 	pushl %ebp
 	movl %esp, %ebp
 	pushl %ecx
@@ -311,6 +436,8 @@ GET_func:
 	popl %ecx
 	popl %ecx
 	popl %ecx
+	cmp $-1, %eax
+	je GET_invalid_interval
 	movl %eax, beg
 	
 	pushl %ecx
@@ -365,6 +492,10 @@ GET_func:
 	# 	decl %ecx
 	# 	movl %ecx, end
 	# 	jmp GET_return_interval
+	GET_invalid_interval:
+		movl $0, beg
+		movl $0, end
+		jmp GET_return_interval
 
 	GET_return_interval:
 		movl 12(%ebp), %eax
@@ -428,9 +559,11 @@ main:
 	popl %ecx
 	popl %ecx
 	
-	movl operations, %ecx
 	operations_loop:
+		movl operations, %ecx
 		#citeste codul operatiei
+		cmp $0, %ecx
+		je et_exit
 		pushl %ecx
 		pushl $opcode
 		pushl $scanfreadnum
@@ -438,11 +571,12 @@ main:
 		popl %ecx
 		popl %ecx
 		popl %ecx
+		decl %ecx
+		movl %ecx, operations
 		jmp call_operation
-		end_operation:
-			loop operations_loop
 	
 call_operation:
+	#popl %ecx
 	movl opcode, %eax
 	cmp $1, %eax
 	je ADD
@@ -451,8 +585,8 @@ call_operation:
 	je GET
 	cmp $3, %eax
 	je DELETE
-	#cmp $4, %eax
-	#je DEFRAGMENTATION
+	cmp $4, %eax
+	je DEFRAGMENTATION
 	#cmp $5, %eax
 	#je CONCRETE
 
@@ -489,10 +623,12 @@ ADD:
 		movl size, %eax
 		movl $8, %ebx
 		divl %ebx
+		popl %ebx
+		cmp $2, %eax
+		jl ADD_invalid_input
 		cmp $0, %edx
 		jne increment_block
 		found_block_amount:
-			popl %ebx
 			movl %eax, size
 			pushl %ecx
 			pushl size
@@ -516,17 +652,17 @@ ADD:
 			
 			decl %edx
 		
-			pushl %ecx
-			pushl %edx
-			pushl %eax
-			pushl fd
-			pushl $fd_si_interval
-			call printf
-			popl %ecx
-			popl %ecx
-			popl %ecx
-			popl %ecx
-			popl %ecx
+			#pushl %ecx
+			#pushl %edx
+			#pushl %eax
+			#pushl fd
+			#pushl $fd_si_interval
+			#call printf
+			#popl %ecx
+			#popl %ecx
+			#popl %ecx
+			#popl %ecx
+			#popl %ecx
 	
 # 			movl $1024, %eax
 # 			pushl %eax
@@ -539,23 +675,34 @@ ADD:
 			#loop input_file_loop
 			#popl %ecx
 			loop input_file_loop
+			pushl $1
+			pushl %edi
+			call print_all_intervals
+			popl %edi
+			popl %ecx
+			popl %ecx
 			jmp operations_loop
 		
 		increment_block:
 			incl %eax
 			jmp found_block_amount
 
+		ADD_invalid_input:
+			decl %ecx
+			jmp operations_loop
 GET:
 	pushl $fd
 	pushl $scanfreadnum
 	call scanf	
 	popl %eax
 	popl %eax
+	pushl %ecx
 	pushl $1
 	pushl fd
 	call GET_func
 	popl %eax
 	popl %eax
+	popl %ecx
 	jmp operations_loop
 		
 DELETE:
@@ -564,11 +711,14 @@ DELETE:
 	call scanf
 	DELETE_after_read:
 	addl $8, %esp
+	pushl %ecx
 	pushl $0
 	pushl fd
 	call GET_func
 	popl %eax
 	popl %eax
+	popl %ecx
+	pushl %ecx
 	pushl $0
 	pushl end
 	pushl beg
@@ -576,9 +726,22 @@ DELETE:
 	call fill_blocks
 	addl $16, %esp
 	addl $4, %esp
+	popl %ecx
+	pushl %ecx
+	pushl $1
 	pushl %edi
 	call print_all_intervals
 	popl %edi
+	popl %ecx
+	popl %ecx
+	jmp operations_loop
+
+DEFRAGMENTATION:
+	pushl %ecx
+	pushl %edi
+	call DEFRAGMENTATION_func
+	popl %edi
+	popl %ecx
 	jmp operations_loop
 
 possible_error:
