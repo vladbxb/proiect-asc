@@ -6,9 +6,12 @@
 	column: .long 0
 	column_stop: .long 0
 	fd: .long 0
+	size: .long 0
 	num_with_space: .asciz "%d "
+	scanfreadnum: .asciz "%d"
 	newline: .asciz "\n"
-	
+	operations: .long 0
+	opcode: .long 0
 .text
 
 zero_fill_matrix:
@@ -44,10 +47,14 @@ fill_blocks:
 	pushl %ebp
 	movl %esp, %ebp
 	movl 8(%ebp), %eax
-	movl 12(%ebp), ordine
-	movl 16(%ebp), line
-	movl 20(%ebp), column
-	movl 24(%ebp), column_stop
+	movl 12(%ebp), %ecx
+	movl %ecx, ordine
+	movl 16(%ebp), %ecx
+	movl %ecx, line
+	movl 20(%ebp), %ecx
+	movl %ecx, column
+	movl 24(%ebp), %ecx
+	movl %ecx, column_stop
 	xorl %ebx, %ebx
 	movl 28(%ebp), %ebx
 
@@ -145,10 +152,62 @@ print_matrix:
 		jmp print_matrix_loop_continue
 
 	print_matrix_return:
+		pushl $newline
+		call printf
+		popl %eax
 		popl %ebx
 		popl %edi
 		popl %ebp
 		ret
+
+ADD_func:
+## void ADD_func()
+## practic executa comanda add. am facut-o functie ca sa salvez registrii pe stiva pe care ii schimbasem in main (ca sa fie mai usor de citit)
+
+	pushl %ebp
+	movl %esp, %ebp
+	movl $0, line
+	movl ordine, line_stop
+	movl $0, column
+	movl $0, column_stop
+	movl $0, fd
+
+	pushl $fd
+	pushl $scanfreadnum
+	call scanf
+	popl %eax
+	popl %eax
+
+	pushl $size
+	pushl $scanfreadnum
+	call scanf
+	popl %eax
+	popl %eax
+
+	movl $8, %ecx
+	movl size, %eax
+	xorl %edx, %edx
+	divl %ecx
+	cmp $2, %eax
+	jl ADD_func_invalid_input
+	cmp $0, %edx
+	jne ADD_func_add_remainder
+	cmp $8, %eax
+	jge ADD_func_invalid_input
+	ADD_func_continue:
+	movl $0, %ecx
+	movl %eax, %edx
+
+	ADD_func_loop:
+		
+
+	ADD_func_invalid_input:
+		popl %ebp
+		ret
+
+	ADD_func_add_remainder:
+		incl %eax
+		jmp ADD_func_continue
 
 .global main
 
@@ -164,6 +223,7 @@ main:
 	pushl $7
 	pushl $0
 	pushl $0
+	pushl ordine
 	pushl %edi
 	call fill_blocks
 	popl %edi
@@ -173,7 +233,50 @@ main:
 	call print_matrix
 	popl %edi
 	addl $4, %esp
-	jmp et_exit
+	
+	pushl $operations
+	pushl $scanfreadnum
+	call scanf
+	popl %ecx
+	popl %ecx
+
+	xorl %ecx, %ecx
+
+	operations_loop:
+		movl operations, %ecx
+		cmp $0, %ecx
+		je et_exit
+		pushl %ecx
+		pushl $opcode
+		pushl $scanfreadnum
+		call scanf
+		popl %ecx
+		popl %ecx
+		popl %ecx
+		decl %ecx
+		movl %ecx, operations
+		jmp call_operation
+
+	call operation:
+		movl opcode, %eax
+		cmp $1, %eax
+		je ADD
+		#cmp $2, %eax
+		#je GET
+		#cmp $3, %eax
+		#je DELETE
+		#cmp $4, %eax
+		#je DEFRAGMENTATION
+
+	ADD:
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		call ADD_func
+		popl %edx
+		popl %ecx
+		popl %eax
+		jmp operations_loop
 
 et_exit:
 	pushl $0
