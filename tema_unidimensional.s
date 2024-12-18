@@ -243,6 +243,8 @@ search_valid_space:
 	movl 12(%ebp), %eax
 	movl $0, beg
 	decl %edx
+	cmp $1024, %edx
+	jae valid_space_not_found
 	#subl $1, %edx
 	movl %edx, end
 	check_condition:
@@ -600,9 +602,11 @@ ADD:
 	call scanf
 	popl %ecx
 	popl %ecx
-	movl num_of_files, %ecx
+	xorl %ecx, %ecx
 	input_file_loop:
 		## citeste file descriptor
+		cmp num_of_files, %ecx
+		je operations_loop
 		pushl %ecx
 		pushl $fd
 		pushl $scanfreadnum
@@ -621,11 +625,12 @@ ADD:
 		xorl %edx, %edx
 		pushl %ebx
 		movl size, %eax
+		check_ADD:
+		cmp $8, %eax
+		jbe ADD_invalid_input
 		movl $8, %ebx
 		divl %ebx
 		popl %ebx
-		cmp $2, %eax
-		jl ADD_invalid_input
 		cmp $0, %edx
 		jne increment_block
 		found_block_amount:
@@ -649,8 +654,21 @@ ADD:
 			popl %ebx
 			popl %ebx
 			popl %ecx
+
 			
 			decl %edx
+			
+			pushl %ecx
+			pushl %edx
+			pushl %eax
+			pushl fd
+			pushl $fd_si_interval
+			call printf
+			popl %eax
+			popl %eax
+			popl %eax
+			popl %edx
+			popl %ecx
 		
 			#pushl %ecx
 			#pushl %edx
@@ -674,20 +692,35 @@ ADD:
 
 			#loop input_file_loop
 			#popl %ecx
-			loop input_file_loop
-			pushl $1
-			pushl %edi
-			call print_all_intervals
-			popl %edi
-			popl %ecx
-			popl %ecx
-			jmp operations_loop
-		
+			#pushl $1
+			#pushl %edi
+			#call print_all_intervals
+			#popl %edi
+			#popl %ecx
+			#popl %ecx
+			incl %ecx
+			jmp input_file_loop
+
 		increment_block:
 			incl %eax
 			jmp found_block_amount
 
 		ADD_invalid_input:
+			pushl %eax
+			pushl %ecx
+			pushl %edx
+			pushl $0
+			pushl $0
+			pushl fd
+			pushl $fd_si_interval
+			call printf
+			popl %edx
+			popl %edx
+			popl %edx
+			popl %edx
+			popl %edx
+			popl %ecx
+			popl %eax
 			decl %ecx
 			jmp operations_loop
 GET:
