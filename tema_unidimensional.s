@@ -4,6 +4,7 @@
 	operations: .long 0
 	opcode: .long 0
 	num_of_files: .long 0
+	file_counter: .long 0
 	fd: .long 0
 	beg: .long 0
 	end: .long 0
@@ -52,6 +53,8 @@ DEFRAGMENTATION_func:
 		pushl %edi
 		pushl %eax
 		call find_first_occurrence
+		cmp $-1, %eax
+		je DEFRAGMENTATION_return_aux
 		movl %eax, %edi
 		popl %eax
 		popl %edx
@@ -63,7 +66,7 @@ DEFRAGMENTATION_func:
 		movb %dl, (%eax, %edi, 1)
 		incl %edi
 		incl %esi
-		cmp $1023, %esi
+		cmp $1024, %esi
 		je DEFRAGMENTATION_zero_fill
 		jmp DEFRAGMENTATION_found_empty_space
 
@@ -81,6 +84,7 @@ DEFRAGMENTATION_func:
 		jmp DEFRAGMENTATION_found_empty_space
 		
 	DEFRAGMENTATION_zero_fill:
+		
 		cmp $1024, %edi
 		je DEFRAGMENTATION_reset_beginning
 		xorl %ecx, %ecx
@@ -103,6 +107,12 @@ DEFRAGMENTATION_func:
 		popl %edi	
 		popl %ebp
 		ret
+
+	DEFRAGMENTATION_return_aux:
+		popl %eax
+		popl %edi
+		addl $4, %esp
+		jmp DEFRAGMENTATION_return
 
 move_blocks:
 	## int move_blocks(*arr, destination, start, end)
@@ -243,8 +253,8 @@ search_valid_space:
 	movl 12(%ebp), %eax
 	movl $0, beg
 	decl %edx
-	cmp $1024, %edx
-	jae valid_space_not_found
+	cmp $1023, %edx
+	ja valid_space_not_found
 	#subl $1, %edx
 	movl %edx, end
 	check_condition:
@@ -270,8 +280,8 @@ search_valid_space:
 	
 	keep_searching:
 		movl end, %ebx
-		cmp $1024, %ebx
-		je valid_space_not_found
+		cmp $1023, %ebx
+		jae valid_space_not_found
 		movl beg, %ebx
 		incl %ebx
 		movl %ebx, beg
@@ -521,7 +531,126 @@ GET_func:
 	GET_return:
 		popl %ebp
 		ret
+
+ADD_func:
+## void ADD_func(int *arr, int fd, int size)
+## adauga fd de size kb in arr, si afiseaza pe ecran intervalul unde s-a adaugat
+## daca size ul nu ocupa 2 block uri sau mai mult, afiseaza fd: (0, 0)
+## daca size ul adauga mai mult decat se poate (depaseste block ul 1023), afiseaza fd: (0, 0)
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	movl 12(%ebp), %eax
+	movl 16(%ebp), %ecx
+	movl %ecx, fd
+	movl 20(%ebp), %edx
+	## verificari de validitate
+	cmp $8, %edx
+	jbe ADD_func_invalid_input
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl %edx, %eax
+	movl $8, %ecx
+	xorl %edx, %edx
+	divl %ecx
+	cmp $0, %edx
+	jne increment_size
+	ADD_func_continue:
+	movl %eax, size
+	popl %edx
+	popl %ecx
+	popl %eax
+	pushl %ecx
+	pushl %edx
+	pushl size
+	pushl %eax
+	call search_valid_space
+	cmp $0, %eax
+	je ADD_func_check_for_failed_search
+
+	ADD_func_continue2:
+	pushl %ecx
+	pushl fd
+	pushl %edx
+	pushl %eax
+	pushl %edi
+	call fill_blocks
+	popl %edi
+	popl %eax
+	popl %edx
+	popl %ecx
+	popl %ecx
+	jmp ADD_func_show_interval
+	
+	ADD_func_show_interval:
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl %edx
+		pushl %eax
+		pushl fd
+		pushl $fd_si_interval
+		call printf
+		popl %eax
+		popl %eax
+		popl %eax
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+
 		
+
+	popl %eax
+	addl $4, %esp
+	popl %edx
+	popl %ecx
+
+	jmp ADD_func_return
+	
+
+	ADD_func_invalid_input:
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl $0
+		pushl $0
+		movl 16(%ebp), %ecx
+		pushl %ecx
+		pushl $fd_si_interval
+		call printf
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+		jmp ADD_func_return
+
+	increment_size:
+		incl %eax
+		jmp ADD_func_continue
+
+	ADD_func_return:
+		popl %ebx
+		popl %ebp
+		ret
+
+	ADD_func_check_for_failed_search:
+		cmp $0, %edx
+		je ADD_func_failed_search_empty_stack
+		jmp ADD_func_continue2	
+
+	ADD_func_failed_search_empty_stack:
+		popl %eax
+		addl $4, %esp
+		popl %edx
+		popl %ecx
+		jmp ADD_func_invalid_input
+
+
 .global main
 
 main:
@@ -593,136 +722,186 @@ call_operation:
 	#je CONCRETE
 
 ADD:
-	## salvez contorul %ecx de la operations_loop pentru ca scanf il va strica fiind caller-saved
-	## apoi citesc numarul de fisiere pe care il adaug in tablou
-	## PASTREZ %ECX IN STIVA PENTRU CA IL VOI FOLOSI PENTRU LOOPUL ULTERIOR (ca sa salvez %ecx ul precedent de la operations_loop)
+	pushl %eax
 	pushl %ecx
+	pushl %edx
 	pushl $num_of_files
 	pushl $scanfreadnum
 	call scanf
+	popl %edx
+	popl %edx
+	popl %edx
 	popl %ecx
-	popl %ecx
-	xorl %ecx, %ecx
+	popl %eax
+	movl $0, file_counter
 	input_file_loop:
-		## citeste file descriptor
+		movl file_counter, %ecx
 		cmp num_of_files, %ecx
 		je operations_loop
+		pushl %eax
 		pushl %ecx
+		pushl %edx
 		pushl $fd
 		pushl $scanfreadnum
 		call scanf
+		popl %edx
+		popl %edx
+		popl %edx
 		popl %ecx
-		popl %ecx
-		popl %ecx
-		## citeste marimea fisierului
+		popl %eax
+		pushl %eax
 		pushl %ecx
+		pushl %edx
 		pushl $size
 		pushl $scanfreadnum
 		call scanf
+		popl %edx
+		popl %edx
+		popl %edx
 		popl %ecx
-		popl %ecx
-		popl %ecx
-		xorl %edx, %edx
-		pushl %ebx
-		movl size, %eax
-		check_ADD:
-		cmp $8, %eax
-		jbe ADD_invalid_input
-		movl $8, %ebx
-		divl %ebx
-		popl %ebx
-		cmp $0, %edx
-		jne increment_block
-		found_block_amount:
-			movl %eax, size
-			pushl %ecx
-			pushl size
-			pushl %edi
-			call search_valid_space
-			popl %ecx
-			popl %ecx
-			popl %ecx
-			pushl %ecx
-			pushl fd
-			pushl %edx
-			pushl %eax
-			pushl %edi
-			call fill_blocks
-			#addl $16, %esp
-			popl %ebx
-			popl %eax
-			popl %ebx
-			popl %ebx
-			popl %ecx
+		popl %eax
+		pushl size
+		pushl fd
+		pushl %edi
+		call ADD_func
+		popl %edi
+		addl $8, %esp
+		movl file_counter, %ecx
+		incl %ecx
+		movl %ecx, file_counter
+		jmp input_file_loop
 
-			
-			decl %edx
-			
-			pushl %ecx
-			pushl %edx
-			pushl %eax
-			pushl fd
-			pushl $fd_si_interval
-			call printf
-			popl %eax
-			popl %eax
-			popl %eax
-			popl %edx
-			popl %ecx
-		
-			#pushl %ecx
-			#pushl %edx
-			#pushl %eax
-			#pushl fd
-			#pushl $fd_si_interval
-			#call printf
-			#popl %ecx
-			#popl %ecx
-			#popl %ecx
-			#popl %ecx
-			#popl %ecx
-	
-# 			movl $1024, %eax
+
+	## salvez contorul %ecx de la operations_loop pentru ca scanf il va strica fiind caller-saved
+	## apoi citesc numarul de fisiere pe care il adaug in tablou
+	## PASTREZ %ECX IN STIVA PENTRU CA IL VOI FOLOSI PENTRU LOOPUL ULTERIOR (ca sa salvez %ecx ul precedent de la operations_loop)
+# 	pushl %ecx
+# 	pushl $num_of_files
+# 	pushl $scanfreadnum
+# 	call scanf
+# 	popl %ecx
+# 	popl %ecx
+# 	xorl %ecx, %ecx
+# 	input_file_loop:
+# 		## citeste file descriptor
+# 		cmp num_of_files, %ecx
+# 		je operations_loop
+# 		pushl %ecx
+# 		pushl $fd
+# 		pushl $scanfreadnum
+# 		call scanf
+# 		popl %ecx
+# 		popl %ecx
+# 		popl %ecx
+# 		## citeste marimea fisierului
+# 		pushl %ecx
+# 		pushl $size
+# 		pushl $scanfreadnum
+# 		call scanf
+# 		popl %ecx
+# 		popl %ecx
+# 		popl %ecx
+# 		xorl %edx, %edx
+# 		pushl %ebx
+# 		movl size, %eax
+# 		check_ADD:
+# 		cmp $8, %eax
+# 		jbe ADD_invalid_input
+# 		movl $8, %ebx
+# 		divl %ebx
+# 		popl %ebx
+# 		cmp $0, %edx
+# 		jne increment_block
+# 		found_block_amount:
+# 			movl %eax, size
+# 			pushl %ecx
+# 			pushl size
+# 			pushl %edi
+# 			call search_valid_space
+# 			popl %ecx
+# 			popl %ecx
+# 			popl %ecx
+# 			pushl %ecx
+# 			pushl fd
+# 			pushl %edx
 # 			pushl %eax
 # 			pushl %edi
-# 			call print_array
-# 			popl %edi
+# 			call fill_blocks
+# 			#addl $16, %esp
+# 			popl %ebx
 # 			popl %eax
+# 			popl %ebx
+# 			popl %ebx
+# 			popl %ecx
 # 
-
-			#loop input_file_loop
-			#popl %ecx
-			#pushl $1
-			#pushl %edi
-			#call print_all_intervals
-			#popl %edi
-			#popl %ecx
-			#popl %ecx
-			incl %ecx
-			jmp input_file_loop
-
-		increment_block:
-			incl %eax
-			jmp found_block_amount
-
-		ADD_invalid_input:
-			pushl %eax
-			pushl %ecx
-			pushl %edx
-			pushl $0
-			pushl $0
-			pushl fd
-			pushl $fd_si_interval
-			call printf
-			popl %edx
-			popl %edx
-			popl %edx
-			popl %edx
-			popl %edx
-			popl %ecx
-			popl %eax
-			decl %ecx
-			jmp operations_loop
+# 			
+# 			decl %edx
+# 			
+# 			pushl %ecx
+# 			pushl %edx
+# 			pushl %eax
+# 			pushl fd
+# 			pushl $fd_si_interval
+# 			call printf
+# 			popl %eax
+# 			popl %eax
+# 			popl %eax
+# 			popl %edx
+# 			popl %ecx
+# 		
+# 			#pushl %ecx
+# 			#pushl %edx
+# 			#pushl %eax
+# 			#pushl fd
+# 			#pushl $fd_si_interval
+# 			#call printf
+# 			#popl %ecx
+# 			#popl %ecx
+# 			#popl %ecx
+# 			#popl %ecx
+# 			#popl %ecx
+# 	
+# # 			movl $1024, %eax
+# # 			pushl %eax
+# # 			pushl %edi
+# # 			call print_array
+# # 			popl %edi
+# # 			popl %eax
+# # 
+# 
+# 			#loop input_file_loop
+# 			#popl %ecx
+# 			#pushl $1
+# 			#pushl %edi
+# 			#call print_all_intervals
+# 			#popl %edi
+# 			#popl %ecx
+# 			#popl %ecx
+# 			incl %ecx
+# 			jmp input_file_loop
+# 
+# 		increment_block:
+# 			incl %eax
+# 			jmp found_block_amount
+# 
+# 		ADD_invalid_input:
+# 			pushl %eax
+# 			pushl %ecx
+# 			pushl %edx
+# 			pushl $0
+# 			pushl $0
+# 			pushl fd
+# 			pushl $fd_si_interval
+# 			call printf
+# 			popl %edx
+# 			popl %edx
+# 			popl %edx
+# 			popl %edx
+# 			popl %edx
+# 			popl %ecx
+# 			popl %eax
+# 			decl %ecx
+# 			jmp operations_loop
 GET:
 	pushl $fd
 	pushl $scanfreadnum
@@ -752,6 +931,12 @@ DELETE:
 	popl %eax
 	popl %ecx
 	pushl %ecx
+	movl beg, %ecx
+	cmp $0, %ecx
+	je DELETE_wrong1
+	DELETE_after_read_continue:
+	popl %ecx
+	pushl %ecx
 	pushl $0
 	pushl end
 	pushl beg
@@ -760,6 +945,7 @@ DELETE:
 	addl $16, %esp
 	addl $4, %esp
 	popl %ecx
+	DELETE_after_read_continue2:
 	pushl %ecx
 	pushl $1
 	pushl %edi
@@ -767,7 +953,22 @@ DELETE:
 	popl %edi
 	popl %ecx
 	popl %ecx
+	# pushl $1023
+	# pushl %edi
+	# call print_array
+	# popl %edi
+	# addl $4, %esp
 	jmp operations_loop
+
+	DELETE_wrong1:
+	movl end, %ecx
+	cmp $0, %ecx
+	je DELETE_wrong2
+	jmp DELETE_after_read_continue
+
+	DELETE_wrong2:
+	popl %ecx
+	jmp DELETE_after_read_continue2
 
 DEFRAGMENTATION:
 	pushl %ecx
