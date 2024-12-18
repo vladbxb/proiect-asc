@@ -1,6 +1,7 @@
 .data
 	arr: .space 1024
 	arrsize: .long 1024
+	arrsize_minus_one: .long 1023
 	operations: .long 0
 	opcode: .long 0
 	num_of_files: .long 0
@@ -66,7 +67,7 @@ DEFRAGMENTATION_func:
 		movb %dl, (%eax, %edi, 1)
 		incl %edi
 		incl %esi
-		cmp $1024, %esi
+		cmp arrsize, %esi
 		je DEFRAGMENTATION_zero_fill
 		jmp DEFRAGMENTATION_found_empty_space
 
@@ -78,14 +79,14 @@ DEFRAGMENTATION_func:
 		movl %eax, %edx
 		popl %eax
 		popl %edi
-		cmp $1024, %edx
+		cmp arrsize, %edx
 		je DEFRAGMENTATION_return
 		movl %edx, %esi
 		jmp DEFRAGMENTATION_found_empty_space
 		
 	DEFRAGMENTATION_zero_fill:
 		
-		cmp $1024, %edi
+		cmp arrsize, %edi
 		je DEFRAGMENTATION_reset_beginning
 		xorl %ecx, %ecx
 		movb %cl, (%eax, %edi, 1)
@@ -158,7 +159,7 @@ find_first_occurrence:
 	movl 12(%ebp), %eax
 	xorl %ebx, %ebx
 	first_occurrence_search:
-		cmp $1024, %ecx
+		cmp arrsize, %ecx
 		je first_occurrence_not_found
 		movb (%eax, %ecx, 1), %bl
 		movzb %bl, %ebx
@@ -195,7 +196,7 @@ find_first_last_occurrence:
 	movb (%eax, %ecx, 1), %dl
 	incl %ecx
 	first_last_occurrence_search:
-		cmp $1024, %ecx
+		cmp arrsize, %ecx
 		je found_first_last_occurrence
 		movb (%eax, %ecx, 1), %bl
 		cmp %bl, %dl
@@ -253,7 +254,7 @@ search_valid_space:
 	movl 12(%ebp), %eax
 	movl $0, beg
 	decl %edx
-	cmp $1023, %edx
+	cmp arrsize_minus_one, %edx
 	ja valid_space_not_found
 	#subl $1, %edx
 	movl %edx, end
@@ -280,7 +281,7 @@ search_valid_space:
 	
 	keep_searching:
 		movl end, %ebx
-		cmp $1023, %ebx
+		cmp arrsize_minus_one, %ebx
 		jae valid_space_not_found
 		movl beg, %ebx
 		incl %ebx
@@ -371,7 +372,7 @@ print_all_intervals:
 	xorl %ecx, %ecx
 	xorl %ebx, %ebx
 	print_all_intervals_loop:
-		cmp $1024, %ecx
+		cmp arrsize, %ecx
 		je print_all_intervals_return
 		movb (%eax, %ecx, 1), %bl
 		cmp $0, %bl
@@ -657,7 +658,7 @@ main:
 	## umple arrayul "arr" de zero
 	lea arr, %edi
 	xorl %eax, %eax
-	movl $1024, %edx
+	movl arrsize, %edx
 	xorl %ecx, %ecx
 	pushl %ecx
 	pushl %edx
