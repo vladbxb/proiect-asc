@@ -8,9 +8,12 @@
 	num_of_files: .long 0
 	file_counter: .long 0
 	fd: .long 0
+	fds: .space 524288
+	fds_size: .long 524288
 	beg: .long 0
 	end: .long 0
 	size: .long 0
+	#sizes: .space 2097152
 	# x: .long 1
 	spacedelimfmt: .asciz "%d "
 	scanfreadnum: .asciz "%d"
@@ -22,6 +25,7 @@
 	dublu_interval: .asciz "((%d, %d), (%d, %d))\n"
 	aux1: .long 0
 	aux2: .long 0
+	old_address: .long 0
 
 .text
 # zero_fill:
@@ -766,6 +770,9 @@ ADD_func:
 	je ADD_func_check_for_failed_search
 
 	ADD_func_continue2:
+
+	movl %edi, old_address
+
 	pushl %ecx
 	pushl fd
 	pushl %edx
@@ -777,9 +784,48 @@ ADD_func:
 	popl %edx
 	popl %ecx
 	popl %ecx
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	lea fds, %ecx
+
+	pushl $0
+	pushl $0
+	pushl %ecx
+	call find_first_occurrence
+	popl %ecx
+	addl $8, %esp
+	xorl %edx, %edx
+	movl fd, %edx
+	movb %dl, (%ecx, %eax, 1)
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
 	jmp ADD_func_show_interval
+
+	
 	
 	ADD_func_show_interval:
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+
+		lea fds, %eax
+		pushl $10
+		pushl %eax
+		call print_array
+		popl %eax
+		addl $4, %esp
+				
+		popl %edx
+		popl %ecx
+		popl %eax
+
 		pushl %eax
 		pushl %ecx
 		pushl %edx
@@ -899,6 +945,22 @@ main:
 	popl %eax
 	popl %edx
 	popl %ecx
+
+	lea fds, %edi
+	xorl %eax, %eax
+	movl fds_size, %edx
+	xorl %ecx, %ecx
+	pushl %ecx
+	pushl %edx
+	pushl %eax
+	pushl %edi
+	call fill_blocks
+	popl %edi
+	popl %eax
+	popl %edx
+	popl %ecx
+
+	lea arr, %edi
 
 	# pushl $69
 	# pushl $15
@@ -1175,14 +1237,70 @@ DELETE:
 	addl $16, %esp
 	addl $4, %esp
 	popl %ecx
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	pushl fd
+	pushl $0
+	lea fds, %ecx
+	pushl %ecx
+	call find_first_occurrence
+	popl %ecx
+	xorl %edx, %edx
+	movb %dl, (%ecx, %eax, 1)
+	pushl %esi
+	movl %eax, %esi
+	incl %esi
+	movl %eax, %edi
+	#xorl %eax, %eax
+	xorl %edx, %edx
+	DELETE_pop_fd_loop:
+		movb (%ecx, %esi, 1), %al
+		cmpb $0, %al
+		je DELETE_pop_fd_loop_finished
+		movb (%ecx, %edi, 1), %dl
+		movb %dl, (%ecx, %esi, 1)
+		movb %al, (%ecx, %edi, 1)
+		incl %edi
+		incl %esi
+		jmp DELETE_pop_fd_loop
+
+	DELETE_pop_fd_loop_finished:
+		popl %esi
+		#popl %ecx
+		addl $8, %esp
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+
+		lea fds, %eax
+		pushl $10
+		pushl %eax
+		call print_array
+		popl %eax
+		addl $4, %esp
+				
+		popl %edx
+		popl %ecx
+		popl %eax
+
 	DELETE_after_read_continue2:
 	pushl %ecx
 	pushl $1
+	lea arr, %edi
 	pushl %edi
 	call print_all_intervals
 	popl %edi
 	popl %ecx
 	popl %ecx
+
+
+
 	# pushl $1023
 	# pushl %edi
 	# call print_array
