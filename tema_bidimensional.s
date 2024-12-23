@@ -13,7 +13,9 @@
 	beg: .long 0
 	end: .long 0
 	size: .long 0
-	#sizes: .space 2097152
+	sizes: .space 2097152
+	sizes_size: .space 2097152
+	size_in_kb: .long 0
 	# x: .long 1
 	spacedelimfmt: .asciz "%d "
 	scanfreadnum: .asciz "%d"
@@ -44,104 +46,199 @@
 # 		popl %ebp
 # 		ret
 
+# DEFRAGMENTATION_func:
+# ## void DEFRAGMENTATION_func(*arr)
+# ## defragmenteaza tot arrayul
+# 	pushl %ebp
+# 	pushl %edi
+# 	pushl %esi
+# 	pushl %ebx
+# 	movl %esp, %ebp
+# 	movl 20(%ebp), %eax
+# 	xorl %edi, %edi
+# 	xorl %esi, %esi
+# 	xorl %ecx, %ecx
+# 	xorl %edx, %edx
+# 	xorl %ebx, %ebx
+# 	DEFRAGMENTATION_loop:
+# 		pushl $0
+# 		pushl %edi
+# 		pushl %eax
+# 		call find_first_occurrence
+# 		cmp $-1, %eax
+# 		je DEFRAGMENTATION_return_aux
+# 		movl %eax, %edi
+# 		popl %eax
+# 		popl %edx
+# 		popl %edx
+# 		jmp DEFRAGMENTATION_find_esi
+# 
+# 		DEFRAGMENTATION_found_empty_space:
+# 		movb (%eax, %esi, 1), %dl
+# 		movb %dl, (%eax, %edi, 1)
+# 		incl %edi
+# 		incl %esi
+# 		cmp arrsize, %esi
+# 		je DEFRAGMENTATION_zero_fill
+# 		jmp DEFRAGMENTATION_found_empty_space
+# 
+# 	DEFRAGMENTATION_find_esi:
+# 		pushl %edi
+# 		pushl %eax
+# 		call find_first_last_occurrence
+# 		incl %eax
+# 		movl %eax, %edx
+# 		popl %eax
+# 		popl %edi
+# 		cmp arrsize, %edx
+# 		je DEFRAGMENTATION_return
+# 		movl %edx, %esi
+# 		DEFRAGMENTATION_find_esi_continue:
+# 		decl %esi
+# 		pushl %esi
+# 		pushl %edi
+# 		pushl %eax
+# 		call check_valid_space
+# 		cmp $0, %eax
+# 		je DEFRAGMENTATION_repair_edi
+# 		popl %eax
+# 		popl %edi
+# 		popl %esi
+# 		incl %esi
+# 		jmp DEFRAGMENTATION_found_empty_space
+# 		
+# 	DEFRAGMENTATION_zero_fill:
+# 		
+# 		cmp arrsize, %edi
+# 		je DEFRAGMENTATION_reset_beginning
+# 		xorl %ecx, %ecx
+# 		movb %cl, (%eax, %edi, 1)
+# 		incl %edi
+# 		jmp DEFRAGMENTATION_zero_fill
+# 
+# 	DEFRAGMENTATION_reset_beginning:
+# 		xorl %edi, %edi
+# 		jmp DEFRAGMENTATION_loop
+# 
+# 	DEFRAGMENTATION_return:
+# 		pushl $1
+# 		pushl %eax
+# 		call print_all_intervals
+# 		popl %eax
+# 		popl %ebx
+# 		popl %ebx
+# 		popl %esi
+# 		popl %edi	
+# 		popl %ebp
+# 		ret
+# 
+# 	DEFRAGMENTATION_return_aux:
+# 		popl %eax
+# 		popl %edi
+# 		addl $4, %esp
+# 		jmp DEFRAGMENTATION_return
+# 	
+# 	DEFRAGMENTATION_repair_edi:
+# 		popl %eax
+# 		popl %edi
+# 		popl %esi
+# 		incl %edi
+# 		jmp DEFRAGMENTATION_find_esi_continue
+
 DEFRAGMENTATION_func:
-## void DEFRAGMENTATION_func(*arr)
-## defragmenteaza tot arrayul
+## void DEFRAGMENTATION_func(int *arr)
+## defragmenteaza arrayul pasat ca parametru
 	pushl %ebp
-	pushl %edi
-	pushl %esi
-	pushl %ebx
 	movl %esp, %ebp
-	movl 20(%ebp), %eax
-	xorl %edi, %edi
-	xorl %esi, %esi
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 8(%ebp), %eax
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	#xorl %eax, %eax
+	movl arrsize, %edx
+	xorl %ecx, %ecx
+	pushl %ecx
+	pushl %edx
+	pushl $0
+	pushl %eax
+	call fill_blocks
+	popl %eax
+	addl $4, %esp
+	popl %edx
+	popl %ecx
+
+	# pushl $10
+	# pushl %eax
+	# call print_array
+	# popl %eax
+	# addl $4, %esp
+
+	# pushl $0
+	# pushl arrsize
+	# pushl $0
+	# pushl %eax
+	# call fill_blocks
+	# popl %eax
+	# addl $12, %esp
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
 	xorl %ecx, %ecx
 	xorl %edx, %edx
+	pushl %ebx
 	xorl %ebx, %ebx
-	DEFRAGMENTATION_loop:
-		pushl $0
-		pushl %edi
-		pushl %eax
-		call find_first_occurrence
-		cmp $-1, %eax
-		je DEFRAGMENTATION_return_aux
-		movl %eax, %edi
-		popl %eax
-		popl %edx
-		popl %edx
-		jmp DEFRAGMENTATION_find_esi
+	
+	pushl %edi
+	pushl %esi
 
-		DEFRAGMENTATION_found_empty_space:
-		movb (%eax, %esi, 1), %dl
-		movb %dl, (%eax, %edi, 1)
-		incl %edi
-		incl %esi
-		cmp arrsize, %esi
-		je DEFRAGMENTATION_zero_fill
-		jmp DEFRAGMENTATION_found_empty_space
+	movl 8(%ebp), %eax
+	lea fds, %edi
+	lea sizes, %esi
 
-	DEFRAGMENTATION_find_esi:
-		pushl %edi
-		pushl %eax
-		call find_first_last_occurrence
-		incl %eax
-		movl %eax, %edx
-		popl %eax
-		popl %edi
-		cmp arrsize, %edx
-		je DEFRAGMENTATION_return
-		movl %edx, %esi
-		DEFRAGMENTATION_find_esi_continue:
-		decl %esi
+	DEFRAGMENTATION_func_loop:
+		movb (%edi, %ecx, 1), %dl
+		movl (%esi, %ecx, 4), %ebx
+		cmp $0, %ebx
+		je DEFRAGMENTATION_func_return
 		pushl %esi
-		pushl %edi
+		pushl %ecx
+		pushl $0
+		pushl %ebx
+		pushl %edx
 		pushl %eax
-		call check_valid_space
-		cmp $0, %eax
-		je DEFRAGMENTATION_repair_edi
+		call ADD_func
+		DEFRAGMENTATION_func_loop_debug:
 		popl %eax
+		popl %edx
+		popl %ebx
+		popl %ecx
+		popl %ecx
+		popl %esi
+		incl %ecx
+		jmp DEFRAGMENTATION_func_loop
+
+	DEFRAGMENTATION_func_return:
+		# pushl $1
+		# pushl %eax
+		# call print_all_intervals
+		# popl %eax
+		# addl $4, %esp
+		popl %esi
 		popl %edi
-		popl %esi
-		incl %esi
-		jmp DEFRAGMENTATION_found_empty_space
-		
-	DEFRAGMENTATION_zero_fill:
-		
-		cmp arrsize, %edi
-		je DEFRAGMENTATION_reset_beginning
-		xorl %ecx, %ecx
-		movb %cl, (%eax, %edi, 1)
-		incl %edi
-		jmp DEFRAGMENTATION_zero_fill
-
-	DEFRAGMENTATION_reset_beginning:
-		xorl %edi, %edi
-		jmp DEFRAGMENTATION_loop
-
-	DEFRAGMENTATION_return:
-		pushl $1
-		pushl %eax
-		call print_all_intervals
+		popl %ebx
+		popl %edx
+		popl %ecx
 		popl %eax
-		popl %ebx
-		popl %ebx
-		popl %esi
-		popl %edi	
 		popl %ebp
 		ret
-
-	DEFRAGMENTATION_return_aux:
-		popl %eax
-		popl %edi
-		addl $4, %esp
-		jmp DEFRAGMENTATION_return
 	
-	DEFRAGMENTATION_repair_edi:
-		popl %eax
-		popl %edi
-		popl %esi
-		incl %edi
-		jmp DEFRAGMENTATION_find_esi_continue
 
 move_blocks:
 	## int move_blocks(*arr, destination, start, end)
@@ -205,6 +302,41 @@ find_first_occurrence:
 		jmp find_first_occurrence_return
 
 	find_first_occurrence_return:
+		popl %ebx
+		popl %ebp
+		ret
+
+find_first_occurrence_long:
+	## int find_first_occurrence_long(*arr, start, num)
+	## gaseste prima aparenta a numarului num in array incepand de la pozitia start
+	## returneaza -1 daca nu gaseste numarul si pozitia numarului daca il gaseste
+	## valoarea de return este in %eax
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	movl 20(%ebp), %edx
+	movl 16(%ebp), %ecx
+	movl 12(%ebp), %eax
+	xorl %ebx, %ebx
+	first_occurrence_long_search:
+		cmp arrsize, %ecx
+		je first_occurrence_long_not_found
+		movl (%eax, %ecx, 4), %ebx
+		#movzb %bl, %ebx
+		cmp %edx, %ebx
+		je first_occurrence_long_found
+		incl %ecx
+		jmp first_occurrence_long_search
+		
+	first_occurrence_long_not_found:
+		movl $-1, %eax
+		jmp find_first_occurrence_long_return
+
+	first_occurrence_long_found:
+		movl %ecx, %eax
+		jmp find_first_occurrence_long_return
+
+	find_first_occurrence_long_return:
 		popl %ebx
 		popl %ebp
 		ret
@@ -438,6 +570,67 @@ print_array:
 		jmp print_loop_continue
 
 	print_done:
+		pushl $newline
+		call printf
+		popl %ebx
+	popl %ebx
+	popl %ebp
+	ret
+
+print_array_long:
+	## print_array_long(int *arr, int amount)
+	## afiseaza pe ecran primele "amount" numere dintr-un array cu spatiu intre ele incepand de la primul
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	movl 16(%ebp), %edx
+	movl 12(%ebp), %eax
+	xorl %ecx, %ecx
+	print_loop_long:
+		cmp %edx, %ecx
+		je print_long_done
+		movl (%eax, %ecx, 4), %ebx
+		#movzb %bl, %ebx
+		pushl %eax
+		pushl %edx
+		pushl %ecx
+		pushl %ebx
+		pushl $spacedelimfmt
+		call printf
+		popl %ebx
+		popl %ebx
+		popl %ecx
+		popl %edx
+		popl %eax
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		movl %ecx, %eax
+		xorl %edx, %edx
+		movl colsize, %ecx
+		divl %ecx
+		cmp $7, %edx
+		je print_newline_long
+		print_loop_long_continue:
+		popl %edx
+		popl %ecx
+		popl %eax
+		incl %ecx
+		jmp print_loop_long
+		
+	print_newline_long:
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl $newline
+		call printf
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+		jmp print_loop_long_continue
+
+	print_long_done:
 		pushl $newline
 		call printf
 		popl %ebx
@@ -731,19 +924,22 @@ GET_func:
 		ret
 
 ADD_func:
-## void ADD_func(int *arr, int fd, int size)
+## void ADD_func(int *arr, int fd, int size, int flag)
 ## adauga fd de size kb in arr, si afiseaza pe ecran intervalul unde s-a adaugat
 ## daca size ul nu ocupa 2 block uri sau mai mult, afiseaza fd: (0, 0)
 ## daca size ul adauga mai mult decat se poate (depaseste block ul 1023), afiseaza fd: (0, 0)
+## daca flagul este 0 nu adauga continutul in arrayurile suplimentare
 	pushl %ebp
 	pushl %ebx
 	pushl %edi
+	pushl %esi
 	movl %esp, %ebp
-	movl 16(%ebp), %eax
-	movl 16(%ebp), %edi
-	movl 20(%ebp), %ecx
+	movl 20(%ebp), %eax
+	movl 20(%ebp), %edi
+	movl 24(%ebp), %ecx
 	movl %ecx, fd
-	movl 24(%ebp), %edx
+	movl 28(%ebp), %edx
+	movl %edx, size_in_kb
 	## verificari de validitate
 	cmp $8, %edx
 	jbe ADD_func_invalid_input
@@ -785,6 +981,11 @@ ADD_func:
 	popl %ecx
 	popl %ecx
 
+
+	movl 32(%ebp), %esi
+	cmp $0, %esi
+	je ADD_func_flag_test
+
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -805,26 +1006,61 @@ ADD_func:
 	popl %ecx
 	popl %eax
 
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	lea sizes, %ecx
+
+	pushl $0
+	pushl $0
+	pushl %ecx
+	call find_first_occurrence_long
+	popl %ecx
+	addl $8, %esp
+	xorl %edx, %edx
+	movl size_in_kb, %edx
+	movl %edx, (%ecx, %eax, 4)
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
 	jmp ADD_func_show_interval
 
 	
 	
 	ADD_func_show_interval:
 
-		pushl %eax
-		pushl %ecx
-		pushl %edx
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
 
-		lea fds, %eax
-		pushl $10
-		pushl %eax
-		call print_array
-		popl %eax
-		addl $4, %esp
-				
-		popl %edx
-		popl %ecx
-		popl %eax
+		# lea fds, %eax
+		# pushl $10
+		# pushl %eax
+		# call print_array
+		# popl %eax
+		# addl $4, %esp
+		# 		
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+
+		# lea sizes, %eax
+		# pushl $10
+		# pushl %eax
+		# call print_array_long
+		# popl %eax
+		# addl $4, %esp
+		# 		
+		# popl %edx
+		# popl %ecx
+		# popl %eax
 
 		pushl %eax
 		pushl %ecx
@@ -890,7 +1126,7 @@ ADD_func:
 		pushl $0
 		pushl $0
 		pushl $0
-		movl 20(%ebp), %ecx
+		movl 24(%ebp), %ecx
 		pushl %ecx
 		pushl $fd_si_dublu_interval
 		call printf
@@ -910,6 +1146,7 @@ ADD_func:
 		jmp ADD_func_continue
 
 	ADD_func_return:
+		popl %esi
 		popl %edi
 		popl %ebx
 		popl %ebp
@@ -926,6 +1163,9 @@ ADD_func:
 		popl %edx
 		popl %ecx
 		jmp ADD_func_invalid_input
+
+	ADD_func_flag_test:
+		jmp ADD_func_show_interval
 
 
 .global main
@@ -949,6 +1189,20 @@ main:
 	lea fds, %edi
 	xorl %eax, %eax
 	movl fds_size, %edx
+	xorl %ecx, %ecx
+	pushl %ecx
+	pushl %edx
+	pushl %eax
+	pushl %edi
+	call fill_blocks
+	popl %edi
+	popl %eax
+	popl %edx
+	popl %ecx
+
+	lea sizes, %edi
+	xorl %eax, %eax
+	movl sizes_size, %edx
 	xorl %ecx, %ecx
 	pushl %ecx
 	pushl %edx
@@ -1053,12 +1307,13 @@ ADD:
 		popl %edx
 		popl %ecx
 		popl %eax
+		pushl $1
 		pushl size
 		pushl fd
 		pushl %edi
 		call ADD_func
 		popl %edi
-		addl $8, %esp
+		addl $12, %esp
 		movl file_counter, %ecx
 		incl %ecx
 		movl %ecx, file_counter
@@ -1249,12 +1504,19 @@ DELETE:
 	popl %ecx
 	xorl %edx, %edx
 	movb %dl, (%ecx, %eax, 1)
+	pushl %ecx
+	lea sizes, %ecx
+	movl %edx, (%ecx, %eax, 4)
+	popl %ecx
 	pushl %esi
 	movl %eax, %esi
 	incl %esi
 	movl %eax, %edi
 	#xorl %eax, %eax
 	xorl %edx, %edx
+	pushl %ebx
+	xorl %ebx, %ebx
+	lea sizes, %ebx
 	DELETE_pop_fd_loop:
 		movb (%ecx, %esi, 1), %al
 		cmpb $0, %al
@@ -1262,11 +1524,18 @@ DELETE:
 		movb (%ecx, %edi, 1), %dl
 		movb %dl, (%ecx, %esi, 1)
 		movb %al, (%ecx, %edi, 1)
+		movl (%ebx, %esi, 4), %eax
+		movl (%ebx, %edi, 4), %edx
+		movl %edx, (%ebx, %esi, 4)
+		movl %eax, (%ebx, %edi, 4)
+		xorl %eax, %eax
+		xorl %edx, %edx
 		incl %edi
 		incl %esi
 		jmp DELETE_pop_fd_loop
 
 	DELETE_pop_fd_loop_finished:
+		popl %ebx
 		popl %esi
 		#popl %ecx
 		addl $8, %esp
@@ -1274,20 +1543,35 @@ DELETE:
 		popl %ecx
 		popl %eax
 
-		pushl %eax
-		pushl %ecx
-		pushl %edx
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
 
-		lea fds, %eax
-		pushl $10
-		pushl %eax
-		call print_array
-		popl %eax
-		addl $4, %esp
-				
-		popl %edx
-		popl %ecx
-		popl %eax
+		# lea fds, %eax
+		# pushl $10
+		# pushl %eax
+		# call print_array
+		# popl %eax
+		# addl $4, %esp
+
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+
+		# lea sizes, %eax
+		# pushl $10
+		# pushl %eax
+		# call print_array_long
+		# popl %eax
+		# addl $4, %esp
+		# 		
+		# popl %edx
+		# popl %ecx
+		# popl %eax
 
 	DELETE_after_read_continue2:
 	pushl %ecx
