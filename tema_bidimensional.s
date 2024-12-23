@@ -733,11 +733,13 @@ ADD_func:
 ## daca size ul adauga mai mult decat se poate (depaseste block ul 1023), afiseaza fd: (0, 0)
 	pushl %ebp
 	pushl %ebx
+	pushl %edi
 	movl %esp, %ebp
-	movl 12(%ebp), %eax
-	movl 16(%ebp), %ecx
+	movl 16(%ebp), %eax
+	movl 16(%ebp), %edi
+	movl 20(%ebp), %ecx
 	movl %ecx, fd
-	movl 20(%ebp), %edx
+	movl 24(%ebp), %edx
 	## verificari de validitate
 	cmp $8, %edx
 	jbe ADD_func_invalid_input
@@ -842,7 +844,7 @@ ADD_func:
 		pushl $0
 		pushl $0
 		pushl $0
-		movl 16(%ebp), %ecx
+		movl 20(%ebp), %ecx
 		pushl %ecx
 		pushl $fd_si_dublu_interval
 		call printf
@@ -862,6 +864,7 @@ ADD_func:
 		jmp ADD_func_continue
 
 	ADD_func_return:
+		popl %edi
 		popl %ebx
 		popl %ebp
 		ret
