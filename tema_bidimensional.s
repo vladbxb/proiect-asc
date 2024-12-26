@@ -16,6 +16,7 @@
 	sizes: .space 2097152
 	sizes_size: .space 2097152
 	size_in_kb: .long 0
+	interval_index: .long 0
 	# x: .long 1
 	spacedelimfmt: .asciz "%d "
 	scanfreadnum: .asciz "%d"
@@ -156,6 +157,87 @@ DEFRAGMENTATION_func:
 	pushl %edx
 	movl 8(%ebp), %eax
 
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	pushl %edi
+	lea fds, %edi
+	xorl %eax, %eax
+	movl fds_size, %edx
+	xorl %ecx, %ecx
+	pushl %ecx
+	pushl %edx
+	pushl %eax
+	pushl %edi
+	call fill_blocks
+	popl %edi
+	popl %eax
+	popl %edx
+	popl %ecx
+	popl %edi
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	pushl %esi
+	lea sizes, %esi
+	xorl %eax, %eax
+	movl sizes_size, %edx
+	xorl %ecx, %ecx
+	pushl %ecx
+	pushl %edx
+	pushl %eax
+	pushl %esi
+	call fill_blocks
+	popl %esi
+	popl %eax
+	popl %edx
+	popl %ecx
+	popl %esi
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+
+	# pushl %edi
+	# lea fds, %edi
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
+	# pushl $10
+	# pushl %edi
+	# call print_array
+	# popl %edi
+	# addl $4, %esp
+	# popl %edx
+	# popl %ecx
+	# popl %eax
+	# popl %edi
+
+	# pushl %esi
+	# lea sizes, %esi
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
+	# pushl $10
+	# pushl %esi
+	# call print_array_long
+	# popl %esi
+	# addl $4, %esp
+	# popl %edx
+	# popl %ecx
+	# popl %eax
+	# popl %esi
+
+	movl $0, interval_index
+	
 	pushl %edx
 	pushl %ecx
 	pushl %eax
@@ -163,6 +245,11 @@ DEFRAGMENTATION_func:
 	popl %eax
 	popl %ecx
 	popl %edx
+
+	# pushl %edi
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
 
 	# lea fds, %edi
 	# pushl %eax
@@ -177,6 +264,16 @@ DEFRAGMENTATION_func:
 	# popl %ecx
 	# popl %eax
 
+	# popl %edx
+	# popl %ecx
+	# popl %eax
+	# popl %edi
+
+	# pushl %esi
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
+
 	# lea sizes, %esi
 	# pushl %eax
 	# pushl %ecx
@@ -184,11 +281,16 @@ DEFRAGMENTATION_func:
 	# pushl $10
 	# pushl %esi
 	# call print_array_long
-	# popl %edi
+	# popl %esi
 	# addl $4, %esp
 	# popl %edx
 	# popl %ecx
 	# popl %eax
+
+	# popl %edx
+	# popl %ecx
+	# popl %eax
+	# popl %esi
 
 	pushl %eax
 	pushl %ecx
@@ -832,49 +934,6 @@ store_all_intervals:
 	xorl %ecx, %ecx
 	xorl %ebx, %ebx
 
-	pushl %eax
-	pushl %ecx
-	pushl %edx
-
-	lea fds, %edi
-	xorl %eax, %eax
-	movl fds_size, %edx
-	xorl %ecx, %ecx
-	pushl %ecx
-	pushl %edx
-	pushl %eax
-	pushl %edi
-	call fill_blocks
-	popl %edi
-	popl %eax
-	popl %edx
-	popl %ecx
-
-	popl %edx
-	popl %ecx
-	popl %eax
-
-	pushl %eax
-	pushl %ecx
-	pushl %edx
-
-	lea sizes, %edi
-	xorl %eax, %eax
-	movl sizes_size, %edx
-	xorl %ecx, %ecx
-	pushl %ecx
-	pushl %edx
-	pushl %eax
-	pushl %edi
-	call fill_blocks
-	popl %edi
-	popl %eax
-	popl %edx
-	popl %ecx
-
-	popl %edx
-	popl %ecx
-	popl %eax
 
 	store_all_intervals_loop:
 		cmp arrsize, %ecx
@@ -935,14 +994,15 @@ store_all_intervals:
 
 		lea fds, %ecx
 
-		pushl $0
-		pushl $0
-		pushl %ecx
-		call find_first_occurrence
-		popl %ecx
-		addl $8, %esp
+		# pushl $0
+		# pushl $0
+		# pushl %ecx
+		# call find_first_occurrence
+		# popl %ecx
+		# addl $8, %esp
 		xorl %edx, %edx
 		movl fd, %edx
+		movl interval_index, %eax
 		movb %dl, (%ecx, %eax, 1)
 
 		popl %edx
@@ -955,19 +1015,22 @@ store_all_intervals:
 
 		lea sizes, %ecx
 
-		pushl $0
-		pushl $0
-		pushl %ecx
-		call find_first_occurrence_long
-		popl %ecx
-		addl $8, %esp
+		# pushl $0
+		# pushl $0
+		# pushl %ecx
+		# call find_first_occurrence_long
+		# popl %ecx
+		# addl $8, %esp
 		xorl %edx, %edx
 		movl size_in_kb, %edx
+		movl interval_index, %eax
 		movl %edx, (%ecx, %eax, 4)
 
 		popl %edx
 		popl %ecx
 		popl %eax
+
+		addl $1, interval_index
 
 		jmp store_found_interval_continue
 	
@@ -1816,55 +1879,55 @@ DELETE:
 	addl $4, %esp
 	popl %ecx
 
-	pushl %eax
-	pushl %ecx
-	pushl %edx
-	pushl fd
-	pushl $0
-	lea fds, %ecx
-	pushl %ecx
-	call find_first_occurrence
-	popl %ecx
-	xorl %edx, %edx
-	movb %dl, (%ecx, %eax, 1)
-	pushl %ecx
-	lea sizes, %ecx
-	movl %edx, (%ecx, %eax, 4)
-	popl %ecx
-	pushl %esi
-	movl %eax, %esi
-	incl %esi
-	movl %eax, %edi
-	#xorl %eax, %eax
-	xorl %edx, %edx
-	pushl %ebx
-	xorl %ebx, %ebx
-	lea sizes, %ebx
-	DELETE_pop_fd_loop:
-		movb (%ecx, %esi, 1), %al
-		cmpb $0, %al
-		je DELETE_pop_fd_loop_finished
-		movb (%ecx, %edi, 1), %dl
-		movb %dl, (%ecx, %esi, 1)
-		movb %al, (%ecx, %edi, 1)
-		movl (%ebx, %esi, 4), %eax
-		movl (%ebx, %edi, 4), %edx
-		movl %edx, (%ebx, %esi, 4)
-		movl %eax, (%ebx, %edi, 4)
-		xorl %eax, %eax
-		xorl %edx, %edx
-		incl %edi
-		incl %esi
-		jmp DELETE_pop_fd_loop
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
+	# pushl fd
+	# pushl $0
+	# lea fds, %ecx
+	# pushl %ecx
+	# call find_first_occurrence
+	# popl %ecx
+	# xorl %edx, %edx
+	# movb %dl, (%ecx, %eax, 1)
+	# pushl %ecx
+	# lea sizes, %ecx
+	# movl %edx, (%ecx, %eax, 4)
+	# popl %ecx
+	# pushl %esi
+	# movl %eax, %esi
+	# incl %esi
+	# movl %eax, %edi
+	# #xorl %eax, %eax
+	# xorl %edx, %edx
+	# pushl %ebx
+	# xorl %ebx, %ebx
+	# lea sizes, %ebx
+	# DELETE_pop_fd_loop:
+	# 	movb (%ecx, %esi, 1), %al
+	# 	cmpb $0, %al
+	# 	je DELETE_pop_fd_loop_finished
+	# 	movb (%ecx, %edi, 1), %dl
+	# 	movb %dl, (%ecx, %esi, 1)
+	# 	movb %al, (%ecx, %edi, 1)
+	# 	movl (%ebx, %esi, 4), %eax
+	# 	movl (%ebx, %edi, 4), %edx
+	# 	movl %edx, (%ebx, %esi, 4)
+	# 	movl %eax, (%ebx, %edi, 4)
+	# 	xorl %eax, %eax
+	# 	xorl %edx, %edx
+	# 	incl %edi
+	# 	incl %esi
+	# 	jmp DELETE_pop_fd_loop
 
-	DELETE_pop_fd_loop_finished:
-		popl %ebx
-		popl %esi
-		#popl %ecx
-		addl $8, %esp
-		popl %edx
-		popl %ecx
-		popl %eax
+	# DELETE_pop_fd_loop_finished:
+	# 	popl %ebx
+	# 	popl %esi
+	# 	#popl %ecx
+	# 	addl $8, %esp
+	# 	popl %edx
+	# 	popl %ecx
+	# 	popl %eax
 
 		# pushl %eax
 		# pushl %ecx
