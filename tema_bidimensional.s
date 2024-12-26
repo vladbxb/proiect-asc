@@ -28,6 +28,7 @@
 	aux1: .long 0
 	aux2: .long 0
 	old_address: .long 0
+	last_fd: .long 0
 
 .text
 # zero_fill:
@@ -155,6 +156,40 @@ DEFRAGMENTATION_func:
 	pushl %edx
 	movl 8(%ebp), %eax
 
+	pushl %edx
+	pushl %ecx
+	pushl %eax
+	call store_all_intervals
+	popl %eax
+	popl %ecx
+	popl %edx
+
+	# lea fds, %edi
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
+	# pushl $10
+	# pushl %edi
+	# call print_array
+	# popl %edi
+	# addl $4, %esp
+	# popl %edx
+	# popl %ecx
+	# popl %eax
+
+	# lea sizes, %esi
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
+	# pushl $10
+	# pushl %esi
+	# call print_array_long
+	# popl %edi
+	# addl $4, %esp
+	# popl %edx
+	# popl %ecx
+	# popl %eax
+
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -202,6 +237,7 @@ DEFRAGMENTATION_func:
 	lea fds, %edi
 	lea sizes, %esi
 
+
 	DEFRAGMENTATION_func_loop:
 		movb (%edi, %ecx, 1), %dl
 		movl (%esi, %ecx, 4), %ebx
@@ -225,11 +261,11 @@ DEFRAGMENTATION_func:
 		jmp DEFRAGMENTATION_func_loop
 
 	DEFRAGMENTATION_func_return:
-		# pushl $1
-		# pushl %eax
-		# call print_all_intervals
-		# popl %eax
-		# addl $4, %esp
+		pushl $1
+		pushl %eax
+		call print_all_intervals
+		popl %eax
+		addl $4, %esp
 		popl %esi
 		popl %edi
 		popl %ebx
@@ -434,7 +470,7 @@ check_valid_space:
 		ret
 	
 search_valid_space:
-	## int search_valid_space(*arr, size)
+	## int search_valid_space(int *arr, int size, int start)
 	## returneaza pozitiile start=%eax si end=%edx unde se pot modifica blocurile in siguranta
 	pushl %ebp
 	pushl %ebx
@@ -442,7 +478,13 @@ search_valid_space:
 	movl 16(%ebp), %edx
 	movl 12(%ebp), %eax
 	movl $0, beg
+	pushl %eax
+	movl 20(%ebp), %eax
+	addl %eax, beg
 	decl %edx
+	movl 20(%ebp), %eax
+	addl %eax, %edx
+	popl %eax
 	cmp arrsize_minus_one, %edx
 	ja valid_space_not_found
 	#subl $1, %edx
@@ -778,6 +820,252 @@ print_all_intervals:
 		popl %eax
 		jmp print_found_interval_continue
 
+store_all_intervals:
+	## void store_all_intervals(*arr)
+	## stocheaza evidenta a tuturor blockurilor de date prezente in matrice
+	pushl %ebp
+	pushl %ebx
+	pushl %edi
+	pushl %esi
+	movl %esp, %ebp
+	movl 20(%ebp), %eax
+	xorl %ecx, %ecx
+	xorl %ebx, %ebx
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	lea fds, %edi
+	xorl %eax, %eax
+	movl fds_size, %edx
+	xorl %ecx, %ecx
+	pushl %ecx
+	pushl %edx
+	pushl %eax
+	pushl %edi
+	call fill_blocks
+	popl %edi
+	popl %eax
+	popl %edx
+	popl %ecx
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	lea sizes, %edi
+	xorl %eax, %eax
+	movl sizes_size, %edx
+	xorl %ecx, %ecx
+	pushl %ecx
+	pushl %edx
+	pushl %eax
+	pushl %edi
+	call fill_blocks
+	popl %edi
+	popl %eax
+	popl %edx
+	popl %ecx
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	store_all_intervals_loop:
+		cmp arrsize, %ecx
+		je store_all_intervals_return
+		movb (%eax, %ecx, 1), %bl
+		cmp $0, %bl
+		jne store_found_interval
+		incl %ecx
+		jmp store_all_intervals_loop
+	
+
+	store_found_interval:
+		movl %ebx, fd
+		pushl %ecx
+		pushl %eax
+		call find_first_last_occurrence
+		movl %eax, %edx
+
+		popl %eax
+		popl %ecx
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		subl %ecx, %edx
+		incl %edx
+		movl %edx, %eax
+		movl $8, %ecx
+		mul %ecx
+		movl %eax, size_in_kb
+		popl %edx
+		popl %ecx
+		popl %eax
+		
+		#popl %eax
+		#popl %ecx
+		# movl 24(%ebp), %ebx
+		# cmp $1, %ebx
+		# je print_with_fd
+		jmp store_it
+		store_found_interval_continue:
+		movl %edx, %ecx
+		incl %ecx
+		jmp store_all_intervals_loop
+
+	store_all_intervals_return:
+		popl %esi
+		popl %edi
+		popl %ebx
+		popl %ebp
+		ret
+
+	store_it:
+		
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+
+		lea fds, %ecx
+
+		pushl $0
+		pushl $0
+		pushl %ecx
+		call find_first_occurrence
+		popl %ecx
+		addl $8, %esp
+		xorl %edx, %edx
+		movl fd, %edx
+		movb %dl, (%ecx, %eax, 1)
+
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+
+		lea sizes, %ecx
+
+		pushl $0
+		pushl $0
+		pushl %ecx
+		call find_first_occurrence_long
+		popl %ecx
+		addl $8, %esp
+		xorl %edx, %edx
+		movl size_in_kb, %edx
+		movl %edx, (%ecx, %eax, 4)
+
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		jmp store_found_interval_continue
+	
+	# print_without_fd:
+	# 	pushl %eax
+	# 	pushl %ecx
+	# 	pushl %edx
+	# 	movl %ecx, %eax
+	# 	movl colsize, %ecx
+	# 	xorl %edx, %edx
+	# 	divl %ecx
+	# 	movl %eax, %edi
+	# 	movl %edx, aux1
+	# 	popl %edx
+	# 	popl %ecx
+	# 	popl %eax
+
+	# 	pushl %eax
+	# 	pushl %ecx
+	# 	pushl %edx
+	# 	movl %edx, %eax
+	# 	movl colsize, %ecx
+	# 	xorl %edx, %edx
+	# 	divl %ecx
+	# 	movl %eax, %esi
+	# 	movl %edx, aux2
+	# 	popl %edx
+	# 	popl %ecx
+	# 	popl %eax
+	# 	
+	# 	pushl %eax
+	# 	pushl %ecx
+	# 	pushl %edx
+	# 	pushl aux2
+	# 	pushl %esi
+	# 	pushl aux1
+	# 	pushl %edi
+	# 	pushl $dublu_interval
+	# 	call printf
+	# 	popl %edi
+	# 	popl %edi
+	# 	popl %esi
+	# 	popl %esi
+	# 	popl %edx
+	# 	popl %edx
+	# 	popl %ecx
+	# 	popl %eax
+
+	# 	jmp print_found_interval_continue
+
+	# print_with_fd:
+	# 	pushl %eax
+	# 	pushl %ecx
+	# 	pushl %edx
+	# 	movl %ecx, %eax
+	# 	movl colsize, %ecx
+	# 	xorl %edx, %edx
+	# 	divl %ecx
+	# 	movl %eax, %edi
+	# 	movl %edx, aux1
+	# 	popl %edx
+	# 	popl %ecx
+	# 	popl %eax
+
+	# 	pushl %eax
+	# 	pushl %ecx
+	# 	pushl %edx
+	# 	movl %edx, %eax
+	# 	movl colsize, %ecx
+	# 	xorl %edx, %edx
+	# 	divl %ecx
+	# 	movl %eax, %esi
+	# 	movl %edx, aux2
+	# 	popl %edx
+	# 	popl %ecx
+	# 	popl %eax
+	# 	
+	# 	pushl %eax
+	# 	pushl %ecx
+	# 	pushl %edx
+	# 	pushl aux2
+	# 	pushl %esi
+	# 	pushl aux1
+	# 	pushl %edi
+	# 	pushl fd
+	# 	pushl $fd_si_dublu_interval
+	# 	call printf
+	# 	popl %edi
+	# 	popl %edi
+	# 	popl %edi
+	# 	popl %esi
+	# 	popl %esi
+	# 	popl %edx
+	# 	popl %edx
+	# 	popl %ecx
+	# 	popl %eax
+	# 	jmp print_found_interval_continue
+
 GET_func:
 	## void GET_func(int fd, bool flag)
 	## furnizeaza in beg si end variabile globale capatul de la inceput si de la sfarsitul intervalului gasit
@@ -941,8 +1229,8 @@ ADD_func:
 	movl 28(%ebp), %edx
 	movl %edx, size_in_kb
 	## verificari de validitate
-	cmp $8, %edx
-	jbe ADD_func_invalid_input
+	#cmp $8, %edx
+	#jbe ADD_func_invalid_input
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -957,11 +1245,16 @@ ADD_func:
 	popl %edx
 	popl %ecx
 	popl %eax
+	movl 32(%ebp), %esi
+	cmp $0, %esi
+	je ADD_func_search_by_previous_id
 	pushl %ecx
 	pushl %edx
+	pushl $0
 	pushl size
 	pushl %eax
 	call search_valid_space
+	ADD_func_search_by_previous_id_return:
 	cmp $0, %eax
 	je ADD_func_check_for_failed_search
 
@@ -981,53 +1274,51 @@ ADD_func:
 	popl %ecx
 	popl %ecx
 
-
 	movl 32(%ebp), %esi
 	cmp $0, %esi
 	je ADD_func_flag_test
 
-	pushl %eax
-	pushl %ecx
-	pushl %edx
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
 
-	lea fds, %ecx
+	# lea fds, %ecx
 
-	pushl $0
-	pushl $0
-	pushl %ecx
-	call find_first_occurrence
-	popl %ecx
-	addl $8, %esp
-	xorl %edx, %edx
-	movl fd, %edx
-	movb %dl, (%ecx, %eax, 1)
+	# pushl $0
+	# pushl $0
+	# pushl %ecx
+	# call find_first_occurrence
+	# popl %ecx
+	# addl $8, %esp
+	# xorl %edx, %edx
+	# movl fd, %edx
+	# movb %dl, (%ecx, %eax, 1)
 
-	popl %edx
-	popl %ecx
-	popl %eax
+	# popl %edx
+	# popl %ecx
+	# popl %eax
 
-	pushl %eax
-	pushl %ecx
-	pushl %edx
+	# pushl %eax
+	# pushl %ecx
+	# pushl %edx
 
-	lea sizes, %ecx
+	# lea sizes, %ecx
 
-	pushl $0
-	pushl $0
-	pushl %ecx
-	call find_first_occurrence_long
-	popl %ecx
-	addl $8, %esp
-	xorl %edx, %edx
-	movl size_in_kb, %edx
-	movl %edx, (%ecx, %eax, 4)
+	# pushl $0
+	# pushl $0
+	# pushl %ecx
+	# call find_first_occurrence_long
+	# popl %ecx
+	# addl $8, %esp
+	# xorl %edx, %edx
+	# movl size_in_kb, %edx
+	# movl %edx, (%ecx, %eax, 4)
 
-	popl %edx
-	popl %ecx
-	popl %eax
+	# popl %edx
+	# popl %ecx
+	# popl %eax
 
 	jmp ADD_func_show_interval
-
 	
 	
 	ADD_func_show_interval:
@@ -1109,9 +1400,17 @@ ADD_func:
 		popl %eax
 
 		
+	ADD_func_no_interval:
+
+	pushl %ecx
+
+	movl fd, %ecx
+	movl %ecx, last_fd
+
+	popl %ecx
 
 	popl %eax
-	addl $4, %esp
+	addl $8, %esp
 	popl %edx
 	popl %ecx
 
@@ -1159,13 +1458,37 @@ ADD_func:
 
 	ADD_func_failed_search_empty_stack:
 		popl %eax
-		addl $4, %esp
+		addl $8, %esp
 		popl %edx
 		popl %ecx
 		jmp ADD_func_invalid_input
 
 	ADD_func_flag_test:
-		jmp ADD_func_show_interval
+		jmp ADD_func_no_interval
+
+	ADD_func_search_by_previous_id:	
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl last_fd
+		pushl $0
+		pushl %eax
+		call find_first_occurrence
+		movl %eax, aux1
+		popl %eax
+		addl $8, %esp
+		popl %edx
+		popl %ecx
+		popl %eax
+	
+		pushl %ecx
+		pushl %edx
+		pushl aux1
+		pushl size
+		pushl %eax
+		call search_valid_space
+		jmp ADD_func_search_by_previous_id_return
 
 
 .global main
@@ -1603,6 +1926,7 @@ DELETE:
 	jmp DELETE_after_read_continue2
 
 DEFRAGMENTATION:
+	movl $0, last_fd
 	pushl %ecx
 	pushl %edi
 	call DEFRAGMENTATION_func
