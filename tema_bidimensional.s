@@ -20,6 +20,7 @@
 	# x: .long 1
 	spacedelimfmt: .asciz "%d "
 	scanfreadnum: .asciz "%d"
+	printfnum: .asciz "%d\n"
 	newline: .asciz "\n"
 	exit_error: .asciz "programul nu a iesit in siguranta :(\n"
 	fd_si_interval: .asciz "%d: (%d, %d)\n"
@@ -30,6 +31,12 @@
 	aux2: .long 0
 	old_address: .long 0
 	last_fd: .long 0
+	filepath: .asciz "/home/debian/itbi"
+	testfile: .asciz "/home/debian/asc/proiect-asc/tema_unidimensional.s"
+	statbuf: .space 1024
+	getdentsbuf: .space 1024
+	dir_fd: .long 0
+	d_reclen: .long 0
 
 .text
 # zero_fill:
@@ -146,6 +153,116 @@
 # 		popl %esi
 # 		incl %edi
 # 		jmp DEFRAGMENTATION_find_esi_continue
+
+CONCRETE_func:
+## void CONCRETE_func(char *filepath)
+## primeste un file path si introduce fiecare fisier din el in matricea bidimensionala
+## CA TEST !! mai intai primesc direct calea la un fisier
+	pushl %ebp
+	pushl %ebx
+	movl %esp, %ebp
+	
+	## syscall pt open la fisier
+	# movl $5, %eax
+	# movl 12(%ebp), %ebx
+	# xorl %ecx, %ecx
+	# xorl %edx, %edx
+	# int $0x80
+	# 
+	# xorl %edx, %edx
+	# movl $255, %ecx
+	# divl %ecx
+	# incl %edx
+	# movl %edx, fd
+
+	# movl $106, %eax
+	# movl 12(%ebp), %ebx
+	# movl $statbuf, %ecx
+	# int $0x80
+
+	# movl statbuf+20, %eax
+	# pushl %edx
+	# pushl %ecx
+	# pushl %eax
+	# pushl fd
+	# pushl $interval
+	# call printf
+	# popl %eax
+	# popl %eax
+	# popl %eax
+	# popl %ecx
+	# popl %edx
+	
+	## open()
+	movl $5, %eax
+	movl $filepath, %ebx
+	xorl %ecx, %ecx # O_RDONLY
+	int $0x80
+	movl %eax, dir_fd
+	
+	getdents:
+		## getdents()
+		movl $141, %eax
+		movl dir_fd, %ebx
+		movl $getdentsbuf, %ecx
+		movl $1024, %edx
+		int $0x80
+
+		cmp $-1, %eax
+		jle CONCRETE_error
+		cmp $0, %eax
+		je CONCRETE_close_dir
+		
+		movl $getdentsbuf, %esi
+		movl (%esi), %edi
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl %edi
+		pushl $printfnum
+		call printf
+		popl %edi
+		popl %edi
+		popl %edx
+		popl %ecx
+		popl %eax
+		addl $10, %esi # sare peste i_node, d_off si d_reclen
+
+	processing:
+		movl $4, %eax
+		movl $1, %ebx
+		leal (%esi), %ecx
+		int $0x80
+
+		addl -2(%esi), %esi
+		cmpl getdentsbuf+1024, %esi
+		jl processing
+		jmp getdents
+	
+	CONCRETE_error:
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl $exit_error
+		call printf
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		jmp CONCRETE_close_dir
+
+	CONCRETE_close_dir:
+		movl $6, %eax
+		movl dir_fd, %ebx
+		int $0x80
+
+		jmp CONCRETE_return
+
+	CONCRETE_return:
+		popl %ebx
+		popl %ebp
+		ret
 
 DEFRAGMENTATION_func:
 ## void DEFRAGMENTATION_func(int *arr)
@@ -1651,8 +1768,8 @@ call_operation:
 	je DELETE
 	cmp $4, %eax
 	je DEFRAGMENTATION
-	#cmp $5, %eax
-	#je CONCRETE
+	cmp $5, %eax
+	je CONCRETE
 
 ADD:
 	pushl %eax
@@ -1995,6 +2112,18 @@ DEFRAGMENTATION:
 	call DEFRAGMENTATION_func
 	popl %edi
 	popl %ecx
+	jmp operations_loop
+
+CONCRETE:
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	pushl $testfile
+	call CONCRETE_func
+	addl $4, %esp
+	popl %edx
+	popl %ecx
+	popl %eax
 	jmp operations_loop
 
 possible_error:
