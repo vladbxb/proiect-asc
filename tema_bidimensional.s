@@ -31,12 +31,15 @@
 	aux2: .long 0
 	old_address: .long 0
 	last_fd: .long 0
-	filepath: .asciz "/home/debian/itbi"
+	filepath: .asciz "/home/debian/itbi/"
 	testfile: .asciz "/home/debian/asc/proiect-asc/tema_unidimensional.s"
 	statbuf: .space 1024
 	getdentsbuf: .space 1024
 	dir_fd: .long 0
-	d_reclen: .long 0
+	file_fd: .long 0
+	d_reclen: .word 0
+	printfstring: .asciz "%s\n"
+	readbufsize: .long 0
 
 .text
 # zero_fill:
@@ -196,8 +199,12 @@ CONCRETE_func:
 	## open()
 	movl $5, %eax
 	movl $filepath, %ebx
-	xorl %ecx, %ecx # O_RDONLY
+	movl $0, %ecx # O_RDONLY
 	int $0x80
+
+	cmp $0, %eax
+	jl CONCRETE_error
+
 	movl %eax, dir_fd
 	
 	getdents:
@@ -214,28 +221,182 @@ CONCRETE_func:
 		je CONCRETE_close_dir
 		
 		movl $getdentsbuf, %esi
-		movl (%esi), %edi
-		pushl %eax
-		pushl %ecx
-		pushl %edx
-		pushl %edi
-		pushl $printfnum
-		call printf
-		popl %edi
-		popl %edi
-		popl %edx
-		popl %ecx
-		popl %eax
-		addl $10, %esi # sare peste i_node, d_off si d_reclen
+		movl %eax, readbufsize
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+		# pushl %edi
+		# pushl $printfnum
+		# call printf
+		# popl %edi
+		# popl %edi
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+		#addl $10, %esi # sare peste i_node, d_off si d_reclen
 
 	processing:
-		movl $4, %eax
-		movl $1, %ebx
-		leal (%esi), %ecx
-		int $0x80
+		# movl $4, %eax
+		# movl $1, %ebx
+		# leal (%esi), %ecx
+		# int $0x80
 
-		addl -2(%esi), %esi
-		cmpl getdentsbuf+1024, %esi
+		movl %esi, %edi
+		addl $10, %esi
+		leal (%esi), %ecx
+
+		pushl %eax
+		pushl %edx
+		pushl %ecx
+		pushl $printfstring
+		call printf
+		popl %ecx
+		popl %ecx
+		popl %edx
+		popl %eax
+
+		#pushl %eax
+		#pushl %ecx
+		#pushl %edx
+
+		# movl $5, %eax
+		# #movl %ecx, %ebx
+		# lea (%esi), %ebx
+		# movl $0, %ecx
+		# xorl %edx, %edx
+		# int $0x80
+
+		# movl %eax, file_fd
+
+		# xorl %edx, %edx
+		# movl $255, %ecx
+		# divl %ecx
+		# incl %edx
+		# movl %edx, fd
+		# 
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+
+		# movl $106, %eax
+		# movl %ecx, %ebx
+		# movl $statbuf, %ecx
+		# int $0x80
+
+		# movl statbuf+20, %eax
+		# movl $1024, %ecx
+		# xorl %edx, %edx
+		# divl %ecx
+
+		# movl %eax, size_in_kb
+
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+		# pushl size_in_kb
+		# pushl fd
+		# pushl $interval
+		# call printf
+		# popl %edx
+		# popl %edx
+		# popl %edx
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+
+		# pushl %eax
+		# pushl %ebx
+		# pushl %ecx
+		# pushl %edx
+		# pushl %edi
+		# pushl %esi
+		# pushl $4
+		# pushl size_in_kb
+		# pushl fd
+		# push $arr
+		# call ADD_func
+		# popl %esi
+		# popl %esi
+		# popl %esi
+		# popl %esi
+		# popl %esi
+		# popl %edi
+		# popl %edx
+		# popl %ecx
+		# popl %ebx
+		# popl %eax
+
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+		# 
+		# movl $6, %eax
+		# movl file_fd, %ebx
+		# int $0x80
+
+		# cmp $0, %eax
+		# jl CONCRETE_empty_stack
+
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+
+
+		# pushl %edx
+		# pushl %ecx
+		# pushl %eax
+		# pushl fd
+		# pushl $interval
+		# call printf
+		# popl %eax
+		# popl %eax
+		# popl %eax
+		# popl %ecx
+		# popl %edx
+		
+		subl $10, %esi
+		processing_debug:
+		pushl %eax
+		xorl %eax, %eax
+		movw 8(%esi), %ax
+		movw %ax, d_reclen
+		popl %eax
+		addw d_reclen, %si
+		
+
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+		# leal (%esi), %ecx
+		# pushl %ecx
+		# pushl $printfnum
+		# call printf
+		# popl %ecx
+		# popl %ecx
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+
+		# pushl %eax
+		# pushl %ecx
+		# pushl %edx
+		# pushl $exit_error
+		# call printf
+		# popl %edx
+		# popl %edx
+		# popl %ecx
+		# popl %eax
+
+		#leal 8(%esi), %ecx
+
+		#addl %ecx, %esi
+		movl readbufsize, %edx
+		leal getdentsbuf(%edx), %ebx
+		cmpl %ebx, %esi
 		jl processing
 		jmp getdents
 	
@@ -263,6 +424,12 @@ CONCRETE_func:
 		popl %ebx
 		popl %ebp
 		ret
+
+	CONCRETE_empty_stack:
+		popl %edx
+		popl %ecx
+		popl %eax
+		jmp CONCRETE_error
 
 DEFRAGMENTATION_func:
 ## void DEFRAGMENTATION_func(int *arr)
@@ -1411,6 +1578,12 @@ ADD_func:
 	## verificari de validitate
 	#cmp $8, %edx
 	#jbe ADD_func_invalid_input
+
+	movl 32(%ebp), %esi
+	cmp $4, %esi
+	je ADD_func_flag_test2
+
+	ADD_func_flag_test2_continue:
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -1670,6 +1843,32 @@ ADD_func:
 		call search_valid_space
 		jmp ADD_func_search_by_previous_id_return
 
+	ADD_func_flag_test2:
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl fd
+		pushl $fds
+		call find_first_occurrence
+		cmp $-1, %eax
+		je ADD_func_flag_test2_empty_stack
+		jmp ADD_func_flag_test2_empty_stack_then_return
+
+	ADD_func_flag_test2_empty_stack:
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+		jmp ADD_func_flag_test2_continue
+
+	ADD_func_flag_test2_empty_stack_then_return:
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+		jmp ADD_func_invalid_input
 
 .global main
 
