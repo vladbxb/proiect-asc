@@ -452,15 +452,15 @@ CONCRETE_func:
 		cmp $-1, %ebx
 		je jump_to_next_record
 
-		pushl %eax
-		pushl %edx
-		pushl %ecx
-		pushl $printfstring
-		call printf
-		popl %ecx
-		popl %ecx
-		popl %edx
-		popl %eax
+		# pushl %eax
+		# pushl %edx
+		# pushl %ecx
+		# pushl $printfstring
+		# call printf
+		# popl %ecx
+		# popl %ecx
+		# popl %edx
+		# popl %eax
 
 
 		# pushl %eax
@@ -479,35 +479,35 @@ CONCRETE_func:
 		popl %ecx
 		popl %eax
 
-		pushl %eax
-		pushl %edx
-		pushl %ecx
-		pushl $concatenated_string
-		call printf
-		popl %ecx
-		popl %ecx
-		popl %edx
-		popl %eax
+		# pushl %eax
+		# pushl %edx
+		# pushl %ecx
+		# pushl $concatenated_string
+		# call printf
+		# popl %ecx
+		# popl %ecx
+		# popl %edx
+		# popl %eax
 
-		pushl %eax
-		pushl %edx
-		pushl %ecx
-		pushl $newline
-		call printf
-		popl %ecx
-		popl %ecx
-		popl %edx
-		popl %eax
+		# pushl %eax
+		# pushl %edx
+		# pushl %ecx
+		# pushl $newline
+		# call printf
+		# popl %ecx
+		# popl %ecx
+		# popl %edx
+		# popl %eax
 
-		pushl %eax
-		pushl %edx
-		pushl %ecx
-		pushl $newline
-		call printf
-		popl %ecx
-		popl %ecx
-		popl %edx
-		popl %eax
+		# pushl %eax
+		# pushl %edx
+		# pushl %ecx
+		# pushl $newline
+		# call printf
+		# popl %ecx
+		# popl %ecx
+		# popl %edx
+		# popl %eax
 
 		movl $5, %eax
 		#movl %ecx, %ebx
@@ -523,6 +523,26 @@ CONCRETE_func:
 		pushl %edx
 
 		movl %eax, file_fd
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+
+		lea sizes, %ecx
+
+		pushl $0
+		pushl $0
+		pushl %ecx
+		call find_first_occurrence_long
+		popl %ecx
+		addl $8, %esp
+		xorl %edx, %edx
+		movl file_fd, %edx
+		movl %edx, (%ecx, %eax, 4)
+
+		popl %edx
+		popl %ecx
+		popl %eax
 
 		xorl %edx, %edx
 		movl $255, %ecx
@@ -589,24 +609,6 @@ CONCRETE_func:
 		popl %ecx
 		popl %ebx
 		popl %eax
-
-		# pushl %eax
-		# pushl %ecx
-		# pushl %edx
-		
-		# movl $6, %eax
-		# movl file_fd, %ebx
-		# int $0x80
-
-
-		cmp $0, %eax
-		#jl CONCRETE_empty_stack
-		jl CONCRETE_error
-
-		# popl %edx
-		# popl %ecx
-		# popl %eax
-
 
 		# pushl %edx
 		# pushl %ecx
@@ -676,6 +678,51 @@ CONCRETE_func:
 		jmp CONCRETE_close_dir
 
 	CONCRETE_close_dir:
+
+		close_opened_files:
+			pushl %esi
+			pushl %eax
+			pushl %ecx
+			pushl %edx
+			pushl $0
+			pushl $0
+			pushl $sizes
+			call find_first_occurrence_long
+			lea sizes, %esi
+			movl %eax, %edx
+			xorl %ecx, %ecx
+			xorl %eax, %eax
+			close_opened_files_loop:
+				cmp %ecx, %edx
+				je CONCRETE_close_dir_continue
+				movl (%esi, %ecx, 4), %eax
+				pushl %eax
+				pushl %ebx
+				pushl %ecx
+				pushl %edx
+
+				movl %eax, %ebx
+				movl $6, %eax
+				int $0x80
+
+				popl %edx
+				popl %ecx
+				popl %ebx
+				popl %eax
+				
+				incl %ecx
+				jmp close_opened_files_loop
+
+		CONCRETE_close_dir_continue:
+
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+		popl %esi
+
 		movl $6, %eax
 		movl dir_fd, %ebx
 		int $0x80
