@@ -31,8 +31,10 @@
 	aux2: .long 0
 	old_address: .long 0
 	last_fd: .long 0
-	filepath: .asciz "/home/debian/itbi/"
-	testfile: .asciz "/home/debian/asc/proiect-asc/tema_unidimensional.s"
+	filepath: .asciz "/home/debian/testfolder/"
+	testfile: .asciz "/home/debian/testfolder/g"
+	concatenated_string: .space 1024
+	concatenated_string_size: .long 1024
 	statbuf: .space 1024
 	getdentsbuf: .space 1024
 	dir_fd: .long 0
@@ -40,6 +42,8 @@
 	d_reclen: .word 0
 	printfstring: .asciz "%s\n"
 	readbufsize: .long 0
+	single_dot: .asciz "."
+	double_dot: .asciz ".."
 
 .text
 # zero_fill:
@@ -157,6 +161,192 @@
 # 		incl %edi
 # 		jmp DEFRAGMENTATION_find_esi_continue
 
+strcpy:
+## char* strcpy(char *dest, char *src)
+## functioneaza ca strcpy din string.h
+	pushl %ebp
+	pushl %esi
+	pushl %edi
+	movl %esp, %ebp
+	movl 16(%ebp), %edi
+	movl 20(%ebp), %esi
+	xorl %eax, %eax
+	strcpy_loop:
+		movb (%esi), %al
+		movb %al, (%edi)
+		incl %esi
+		incl %edi
+		cmpb $0, %al
+		jne strcpy_loop
+		
+	movl 16(%ebp), %eax
+	popl %edi
+	popl %esi
+	popl %ebp
+	ret
+
+strlen:
+## int strlen(char *str)
+## functioneaza ca strlen din string.h
+	pushl %ebp
+	pushl %esi
+	movl %esp, %ebp
+	movl 12(%ebp), %esi
+	xorl %eax, %eax
+	xorl %ecx, %ecx
+	strlen_loop:
+		movb (%esi), %al
+		incl %ecx
+		cmpb $0, %al
+		jne strlen_loop
+
+	movl %ecx, %eax
+	popl %esi
+	popl %ebp
+	ret
+
+strcat:
+## char* strcat(char *dest, char *src)
+## functioneaza ca strcat din string.h
+## comportament nedefinit in momentul in care src nu este null terminated
+	pushl %ebp
+	pushl %esi
+	pushl %edi
+	movl %esp, %ebp
+	movl 16(%ebp), %edi
+	movl 20(%ebp), %esi
+	xorl %eax, %eax
+	pushl $0
+	pushl $0
+	pushl %edi
+	call find_first_occurrence
+	popl %edi
+	addl $8, %esp
+	addl %eax, %edi
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	pushl %esi
+	pushl %edi
+	call strcpy
+	popl %edi
+	popl %esi
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	movl 16(%ebp), %eax
+	popl %edi
+	popl %esi
+	popl %ebp
+	ret
+	
+
+concatenate_strings:
+## void concatenate_strings(char *string1, char *string2)
+## concateneaza cele doua stringuri null-terminated in variabila globala concatenated_string
+## ATENTIE! functia distruge continutul variabilei globale concatenated_string
+	pushl %ebp
+	pushl %ebx
+	pushl %esi
+	pushl %edi
+	movl %esp, %ebp
+	movl 20(%ebp), %esi
+	movl 24(%ebp), %edi
+	movl $concatenated_string, %ebx
+
+	pushl $0
+	pushl concatenated_string_size
+	pushl $0
+	pushl %ebx
+	call fill_blocks
+	popl %ebx
+	addl $12, %esp
+
+	pushl %esi
+	pushl %ebx
+	call strcpy
+	popl %ebx
+	popl %esi
+
+	pushl %edi
+	pushl %eax
+	call strcat
+	popl %eax
+	popl %edi
+
+	concatenate_strings_return:
+		popl %edi
+		popl %esi
+		popl %ebx
+		popl %ebp
+		ret
+
+check_single_or_double_dots:
+## int check_single_or_double_dots(char *string)
+## verifica daca string este egal cu .. sau .
+## returneaza in eax 0 daca nu este egal si -1 daca este egal
+	pushl %ebp
+	pushl %esi
+	pushl %edi
+	movl %esp, %ebp
+	xorl %eax, %eax
+	xorl %ecx, %ecx
+
+	single_dot_comparison:
+		movl $single_dot, %esi
+		movl 16(%ebp), %edi
+		single_dot_comparison_loop:
+			movb (%esi), %al
+			movb (%edi), %cl
+			cmpb %al, %cl
+			jne not_single_dot
+			cmpb $0, %cl
+			je single_dot_found
+			incl %esi
+			incl %edi
+			jmp single_dot_comparison_loop
+				
+		not_single_dot:
+			jmp double_dot_comparison
+
+		single_dot_found:
+			jmp dots_found
+
+	double_dot_comparison:
+		movl $double_dot, %esi
+		movl 16(%ebp), %edi
+		double_dot_comparison_loop:
+			movb (%esi), %al
+			movb (%edi), %cl
+			cmpb %al, %cl
+			jne not_double_dot
+			cmpb $0, %cl
+			je double_dot_found
+			incl %esi
+			incl %edi
+			jmp double_dot_comparison_loop
+				
+		not_double_dot:
+			jmp no_dots_found
+
+		double_dot_found:
+			jmp dots_found
+
+	no_dots_found:
+		movl $0, %eax
+		jmp check_single_or_double_dots_return
+
+	dots_found:
+		movl $-1, %eax
+		jmp check_single_or_double_dots_return
+
+	check_single_or_double_dots_return:
+		popl %edi
+		popl %esi
+		popl %ebp
+		ret
+
 CONCRETE_func:
 ## void CONCRETE_func(char *filepath)
 ## primeste un file path si introduce fiecare fisier din el in matricea bidimensionala
@@ -205,7 +395,10 @@ CONCRETE_func:
 	cmp $0, %eax
 	jl CONCRETE_error
 
+	#jmp CONCRETE_return
+
 	movl %eax, dir_fd
+
 	
 	getdents:
 		## getdents()
@@ -244,6 +437,20 @@ CONCRETE_func:
 		movl %esi, %edi
 		addl $10, %esi
 		leal (%esi), %ecx
+		
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl %ecx
+		call check_single_or_double_dots
+		movl %eax, %ebx
+		popl %ecx
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		cmp $-1, %ebx
+		je jump_to_next_record
 
 		pushl %eax
 		pushl %edx
@@ -255,91 +462,146 @@ CONCRETE_func:
 		popl %edx
 		popl %eax
 
-		#pushl %eax
-		#pushl %ecx
-		#pushl %edx
-
-		# movl $5, %eax
-		# #movl %ecx, %ebx
-		# lea (%esi), %ebx
-		# movl $0, %ecx
-		# xorl %edx, %edx
-		# int $0x80
-
-		# movl %eax, file_fd
-
-		# xorl %edx, %edx
-		# movl $255, %ecx
-		# divl %ecx
-		# incl %edx
-		# movl %edx, fd
-		# 
-		# popl %edx
-		# popl %ecx
-		# popl %eax
 
 		# pushl %eax
 		# pushl %ecx
 		# pushl %edx
 
-		# movl $106, %eax
-		# movl %ecx, %ebx
-		# movl $statbuf, %ecx
-		# int $0x80
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl %ecx
+		pushl $filepath
+		call concatenate_strings
+		popl %ecx
+		popl %ecx
+		popl %edx
+		popl %ecx
+		popl %eax
 
-		# movl statbuf+20, %eax
-		# movl $1024, %ecx
-		# xorl %edx, %edx
-		# divl %ecx
+		pushl %eax
+		pushl %edx
+		pushl %ecx
+		pushl $concatenated_string
+		call printf
+		popl %ecx
+		popl %ecx
+		popl %edx
+		popl %eax
 
-		# movl %eax, size_in_kb
+		pushl %eax
+		pushl %edx
+		pushl %ecx
+		pushl $newline
+		call printf
+		popl %ecx
+		popl %ecx
+		popl %edx
+		popl %eax
+
+		pushl %eax
+		pushl %edx
+		pushl %ecx
+		pushl $newline
+		call printf
+		popl %ecx
+		popl %ecx
+		popl %edx
+		popl %eax
+
+		movl $5, %eax
+		#movl %ecx, %ebx
+		movl $concatenated_string, %ebx
+		movl $0, %ecx
+		xorl %edx, %edx
+		int $0x80
+	
+		what_is_eax:
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+
+		movl %eax, file_fd
+
+		xorl %edx, %edx
+		movl $255, %ecx
+		divl %ecx
+		incl %edx
+		movl %edx, fd
+		
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+
+		movl $106, %eax
+		movl $concatenated_string, %ebx
+		movl $statbuf, %ecx
+		int $0x80
+
+		movl statbuf+20, %eax
+		movl $1024, %ecx
+		xorl %edx, %edx
+		divl %ecx
+
+		movl %eax, size_in_kb
+
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		pushl %eax
+		pushl %ecx
+		pushl %edx
+		pushl size_in_kb
+		pushl fd
+		pushl $interval
+		call printf
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+
+		pushl %eax
+		pushl %ebx
+		pushl %ecx
+		pushl %edx
+		pushl %edi
+		pushl %esi
+		pushl $4
+		pushl size_in_kb
+		pushl fd
+		push $arr
+		call ADD_func
+		popl %esi
+		popl %esi
+		popl %esi
+		popl %esi
+		popl %esi
+		popl %edi
+		popl %edx
+		popl %ecx
+		popl %ebx
+		popl %eax
 
 		# pushl %eax
 		# pushl %ecx
 		# pushl %edx
-		# pushl size_in_kb
-		# pushl fd
-		# pushl $interval
-		# call printf
-		# popl %edx
-		# popl %edx
-		# popl %edx
-		# popl %edx
-		# popl %ecx
-		# popl %eax
-
-		# pushl %eax
-		# pushl %ebx
-		# pushl %ecx
-		# pushl %edx
-		# pushl %edi
-		# pushl %esi
-		# pushl $4
-		# pushl size_in_kb
-		# pushl fd
-		# push $arr
-		# call ADD_func
-		# popl %esi
-		# popl %esi
-		# popl %esi
-		# popl %esi
-		# popl %esi
-		# popl %edi
-		# popl %edx
-		# popl %ecx
-		# popl %ebx
-		# popl %eax
-
-		# pushl %eax
-		# pushl %ecx
-		# pushl %edx
-		# 
+		
 		# movl $6, %eax
 		# movl file_fd, %ebx
 		# int $0x80
 
-		# cmp $0, %eax
-		# jl CONCRETE_empty_stack
+
+		cmp $0, %eax
+		#jl CONCRETE_empty_stack
+		jl CONCRETE_error
 
 		# popl %edx
 		# popl %ecx
@@ -358,8 +620,8 @@ CONCRETE_func:
 		# popl %ecx
 		# popl %edx
 		
+		jump_to_next_record:
 		subl $10, %esi
-		processing_debug:
 		pushl %eax
 		xorl %eax, %eax
 		movw 8(%esi), %ax
@@ -430,6 +692,21 @@ CONCRETE_func:
 		popl %ecx
 		popl %eax
 		jmp CONCRETE_error
+
+	dots_empty_stack:
+		popl %ecx
+		popl %eax
+		popl %edi
+		popl %esi
+		jmp processing_invalid_dir 
+
+	processing_invalid_dir:
+		popl %ecx
+		popl %eax
+		popl %edi
+		popl %esi
+		jmp jump_to_next_record
+		
 
 DEFRAGMENTATION_func:
 ## void DEFRAGMENTATION_func(int *arr)
@@ -922,7 +1199,7 @@ search_valid_space:
 
 fill_blocks:
 	## void fill_blocks(*arr, start, stop, num)
-	## umple in portiunea specificata intre pozitiile start si stop (interval inchis) tabloul unidimensional pasat ca parametru cu numarul num
+	## umple in portiunea specificata intre pozitiile start si stop (interval [ ) ) tabloul unidimensional pasat ca parametru cu numarul num
 	pushl %ebp
 	pushl %ebx
 	movl %esp, %ebp
