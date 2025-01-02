@@ -10,7 +10,6 @@
 	beg: .long 0
 	end: .long 0
 	size: .long 0
-	# x: .long 1
 	spacedelimfmt: .asciz "%d "
 	scanfreadnum: .asciz "%d"
 	newline: .asciz "\n"
@@ -19,22 +18,6 @@
 	interval: .asciz "(%d, %d)\n"
 
 .text
-# zero_fill:
-# 	pushl %ebp
-# 	movl %esp, %ebp
-# 	xorl %ecx, %ecx
-# 	movl 12(%ebp), %edx
-# 	movl 8(%ebp), %eax
-# 	zfill_loop:
-# 		cmp %edx, %ecx
-# 		je zfill_done
-# 		movb $0, (%eax, %ecx, 1)
-# 		incl %ecx
-# 		jmp zfill_loop
-# 	zfill_done:
-# 		popl %ebp
-# 		ret
-
 DEFRAGMENTATION_func:
 ## void DEFRAGMENTATION_func(*arr)
 ## defragmenteaza tot arrayul
@@ -256,7 +239,6 @@ search_valid_space:
 	decl %edx
 	cmp arrsize_minus_one, %edx
 	ja valid_space_not_found
-	#subl $1, %edx
 	movl %edx, end
 	check_condition:
 		pushl %ecx
@@ -463,48 +445,6 @@ GET_func:
 
 	movl %eax, end
 	jmp GET_return_interval
-	# pushl %ecx
-	# pushl %ebx
-	# xorl %ecx, %ecx
-	# xorl %edx, %edx
-	# xorl %eax, %eax
-	# movl $0, beg
-	# movl $0, end
-	# GET_loop:
-	# 	cmp $1024, %ecx
-	# 	je GET_not_found
-	# 	movb (%edi, %ecx, 1), %al
-	# 	cmp fd, %al
-	# 	je GET_found_descriptor
-	# 	movl beg, %ebx
-	# 	cmp $0, %ebx
-	# 	jne GET_found_last
-	# 	jmp GET_loop
-	# 	
-	# GET_found_descriptor:
-	# 	cmp $0, %edx
-	# 	je GET_found_first
-	# 	GET_found_descriptor_continue:
-	# 		incl %ecx
-	# 		jmp GET_loop
-
-	# GET_not_found:
-	# 	movl beg, %ebx
-	# 	cmp $0, %ebx
-	# 	jne GET_found_last
-	# 	movl $0, beg
-	# 	movl $0, end
-	# 	jmp GET_return_interval
-
-	# GET_found_first:
-	# 	movl $1, %edx
-	# 	movl %ecx, beg
-	# 	jmp GET_found_descriptor_continue
-
-	# GET_found_last:
-	# 	decl %ecx
-	# 	movl %ecx, end
-	# 	jmp GET_return_interval
 	GET_invalid_interval:
 		movl $0, beg
 		movl $0, end
@@ -670,20 +610,6 @@ main:
 	popl %edx
 	popl %ecx
 
-	# pushl $69
-	# pushl $15
-	# pushl $0
-	# pushl %edi
-	# call fill_blocks
-	# addl $16, %esp
-	# 
-	# pushl $1024
-	# pushl %edi
-	# call print_array
-	# addl $8, %esp
-
-	# jmp et_exit
-
 	# citeste numarul de operatii
 	pushl $operations
 	pushl $scanfreadnum
@@ -708,19 +634,16 @@ main:
 		jmp call_operation
 	
 call_operation:
-	#popl %ecx
 	movl opcode, %eax
 	cmp $1, %eax
 	je ADD
-	#jmp possible_error
 	cmp $2, %eax
 	je GET
 	cmp $3, %eax
 	je DELETE
 	cmp $4, %eax
 	je DEFRAGMENTATION
-	#cmp $5, %eax
-	#je CONCRETE
+	jmp et_exit
 
 ADD:
 	pushl %eax
@@ -772,137 +695,6 @@ ADD:
 		movl %ecx, file_counter
 		jmp input_file_loop
 
-
-	## salvez contorul %ecx de la operations_loop pentru ca scanf il va strica fiind caller-saved
-	## apoi citesc numarul de fisiere pe care il adaug in tablou
-	## PASTREZ %ECX IN STIVA PENTRU CA IL VOI FOLOSI PENTRU LOOPUL ULTERIOR (ca sa salvez %ecx ul precedent de la operations_loop)
-# 	pushl %ecx
-# 	pushl $num_of_files
-# 	pushl $scanfreadnum
-# 	call scanf
-# 	popl %ecx
-# 	popl %ecx
-# 	xorl %ecx, %ecx
-# 	input_file_loop:
-# 		## citeste file descriptor
-# 		cmp num_of_files, %ecx
-# 		je operations_loop
-# 		pushl %ecx
-# 		pushl $fd
-# 		pushl $scanfreadnum
-# 		call scanf
-# 		popl %ecx
-# 		popl %ecx
-# 		popl %ecx
-# 		## citeste marimea fisierului
-# 		pushl %ecx
-# 		pushl $size
-# 		pushl $scanfreadnum
-# 		call scanf
-# 		popl %ecx
-# 		popl %ecx
-# 		popl %ecx
-# 		xorl %edx, %edx
-# 		pushl %ebx
-# 		movl size, %eax
-# 		check_ADD:
-# 		cmp $8, %eax
-# 		jbe ADD_invalid_input
-# 		movl $8, %ebx
-# 		divl %ebx
-# 		popl %ebx
-# 		cmp $0, %edx
-# 		jne increment_block
-# 		found_block_amount:
-# 			movl %eax, size
-# 			pushl %ecx
-# 			pushl size
-# 			pushl %edi
-# 			call search_valid_space
-# 			popl %ecx
-# 			popl %ecx
-# 			popl %ecx
-# 			pushl %ecx
-# 			pushl fd
-# 			pushl %edx
-# 			pushl %eax
-# 			pushl %edi
-# 			call fill_blocks
-# 			#addl $16, %esp
-# 			popl %ebx
-# 			popl %eax
-# 			popl %ebx
-# 			popl %ebx
-# 			popl %ecx
-# 
-# 			
-# 			decl %edx
-# 			
-# 			pushl %ecx
-# 			pushl %edx
-# 			pushl %eax
-# 			pushl fd
-# 			pushl $fd_si_interval
-# 			call printf
-# 			popl %eax
-# 			popl %eax
-# 			popl %eax
-# 			popl %edx
-# 			popl %ecx
-# 		
-# 			#pushl %ecx
-# 			#pushl %edx
-# 			#pushl %eax
-# 			#pushl fd
-# 			#pushl $fd_si_interval
-# 			#call printf
-# 			#popl %ecx
-# 			#popl %ecx
-# 			#popl %ecx
-# 			#popl %ecx
-# 			#popl %ecx
-# 	
-# # 			movl $1024, %eax
-# # 			pushl %eax
-# # 			pushl %edi
-# # 			call print_array
-# # 			popl %edi
-# # 			popl %eax
-# # 
-# 
-# 			#loop input_file_loop
-# 			#popl %ecx
-# 			#pushl $1
-# 			#pushl %edi
-# 			#call print_all_intervals
-# 			#popl %edi
-# 			#popl %ecx
-# 			#popl %ecx
-# 			incl %ecx
-# 			jmp input_file_loop
-# 
-# 		increment_block:
-# 			incl %eax
-# 			jmp found_block_amount
-# 
-# 		ADD_invalid_input:
-# 			pushl %eax
-# 			pushl %ecx
-# 			pushl %edx
-# 			pushl $0
-# 			pushl $0
-# 			pushl fd
-# 			pushl $fd_si_interval
-# 			call printf
-# 			popl %edx
-# 			popl %edx
-# 			popl %edx
-# 			popl %edx
-# 			popl %edx
-# 			popl %ecx
-# 			popl %eax
-# 			decl %ecx
-# 			jmp operations_loop
 GET:
 	pushl $fd
 	pushl $scanfreadnum
@@ -954,11 +746,6 @@ DELETE:
 	popl %edi
 	popl %ecx
 	popl %ecx
-	# pushl $1023
-	# pushl %edi
-	# call print_array
-	# popl %edi
-	# addl $4, %esp
 	jmp operations_loop
 
 	DELETE_wrong1:
@@ -986,9 +773,6 @@ possible_error:
 	jmp et_exit
 
 et_exit:
-	#pushl $newline
-	#call printf
-	#popl %eax
 	pushl $0
 	call fflush
 	popl %eax
