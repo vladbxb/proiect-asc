@@ -1846,18 +1846,6 @@ CONCRETE:
 	pushl %eax
 	pushl %ecx
 	pushl %edx
-	pushl $filepath
-	pushl $printfstring
-	call printf
-	popl %edx
-	popl %edx
-	popl %edx
-	popl %ecx
-	popl %ecx
-
-	pushl %eax
-	pushl %ecx
-	pushl %edx
 	pushl $0
 	pushl $0
 	pushl $filepath
