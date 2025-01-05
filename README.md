@@ -8,6 +8,6 @@ simplu, trebuie ca package ul g++-multilib sa fie instalat pe sistemul dvs. GNU/
 
 apoi, unde nume_fisier este sursa GNU Assembly x86 sintaxa AT&T pe care vreti sa o testati, compilati cu comanda:
 
-gcc -m32 "nume_fisier.s" -o nume_fisier -no-pie -g -lc;
+gcc -m32 "nume_fisier.s" -o nume_fisier -no-pie -g;
 
 astfel, executabilul vostru va deveni numele fisierului sursa fara extensia .s
