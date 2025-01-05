@@ -1,5 +1,6 @@
 ## In ce surse sunt respectate cerintele?
 tema_unidimensional.s - Cerinta 0x00
+
 tema_bidimensional.s - Cerinta 0x01
 
 ## Cum se pot compila?
