@@ -683,6 +683,7 @@ find_first_occurrence:
 	movl 20(%ebp), %edx
 	movl 16(%ebp), %ecx
 	movl 12(%ebp), %eax
+
 	xorl %ebx, %ebx
 	first_occurrence_search:
 		cmp arrsize, %ecx
@@ -1396,15 +1397,17 @@ ADD_func:
 	movl %ecx, fd
 	movl 28(%ebp), %edx
 	movl %edx, size_in_kb
-	## verificari de validitate
+	# verificari de validitate
 	#cmp $8, %edx
 	#jbe ADD_func_invalid_input
 
-	movl 32(%ebp), %esi
-	cmp $4, %esi
-	je ADD_func_flag_test2
+	# movl 32(%ebp), %esi
+	# cmp $4, %esi
+	# je ADD_func_flag_test2
 
 	ADD_func_flag_test2_continue:
+
+
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -1422,6 +1425,23 @@ ADD_func:
 	movl 32(%ebp), %esi
 	cmp $0, %esi
 	je ADD_func_search_by_previous_id
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	pushl %ecx
+	pushl $0
+	pushl %edi
+	call find_first_occurrence
+	cmp $-1, %eax
+	jne ADD_func_fd_exists
+	popl %edi
+	popl %ecx
+	popl %ecx
+	popl %edx
+	popl %ecx
+	popl %eax
+
 	pushl %ecx
 	pushl %edx
 	pushl $0
@@ -1435,6 +1455,7 @@ ADD_func:
 	ADD_func_continue2:
 
 	movl %edi, old_address
+
 
 	pushl %ecx
 	pushl fd
@@ -1615,6 +1636,15 @@ ADD_func:
 	ADD_func_flag_test2_empty_stack_then_return:
 		popl %edx
 		popl %edx
+		popl %edx
+		popl %ecx
+		popl %eax
+		jmp ADD_func_invalid_input
+
+	ADD_func_fd_exists:
+		popl %edi
+		popl %ecx
+		popl %ecx
 		popl %edx
 		popl %ecx
 		popl %eax
