@@ -1,3 +1,5 @@
+# Sistem de gestiune a memoriei stocate pe disc scris in vanilla GNU Assembly x86 32-bit sintaxa AT&T
+
 ## In ce surse sunt respectate cerintele?
 tema_unidimensional.s - Cerinta 0x00
 
